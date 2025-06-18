@@ -7,23 +7,24 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.stream.Collectors;
-
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-
-import org.apache.flink.connector.clickhouse.internal.ClickHouseRowDataLookupFunction;
 import org.apache.flink.connector.clickhouse.internal.options.ClickHouseReadOptions;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
-
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import com.oceanbase.omt.DatabaseSyncBase;
 import com.oceanbase.omt.catalog.OceanBaseColumn;
 import com.oceanbase.omt.catalog.OceanBaseTable;
@@ -31,19 +32,17 @@ import com.oceanbase.omt.parser.MigrationConfig;
 import com.oceanbase.omt.parser.OBMigrateConfig;
 import com.oceanbase.omt.parser.SourceMigrateConfig;
 import com.oceanbase.omt.partition.PartitionInfo;
-import com.oceanbase.omt.source.clickhouse.connect.ClickHouseSource;
 import com.oceanbase.omt.source.clickhouse.enums.ColumnInfo;
-import com.oceanbase.omt.source.starrocks.StarRocksDatabaseSync;
 import com.oceanbase.omt.utils.DataSourceUtils;
 import com.oceanbase.omt.utils.OceanBaseJdbcUtils;
 import com.starrocks.connector.flink.catalog.StarRocksCatalogException;
-
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 /**
  * @author yixing
  */
 
 public class ClickHouseDatabaseSync extends DatabaseSyncBase {
-    private static final Logger LOG = LoggerFactory.getLogger(StarRocksDatabaseSync.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ClickHouseDatabaseSync.class);
     private List<OceanBaseTable> oceanBaseTables;
     public ClickHouseDatabaseSync(MigrationConfig migrationConfig) {
         super(migrationConfig);
@@ -65,7 +64,7 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
     }
 
     @Override
-    public List<OceanBaseTable> getObTables() throws Exception {
+    public List<OceanBaseTable> getObTables(){
         // Only as a simple cache.
         if (Objects.nonNull(oceanBaseTables)) {
             return oceanBaseTables;
@@ -82,8 +81,8 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
 
     public OceanBaseTable getTable(String databaseName, String tableName)
             throws StarRocksCatalogException {
-        final String tableSchemaQuery="SELECT database,table,name,type,default_kind,default_expression,comment,is_in_partition_key,is_in_sorting_key,is_in_primary_key,is_in_sampling_key,numeric_precision,numeric_scale,comment,is_in_partition_key,is_in_sorting_key,is_in_primary_key,is_in_sampling_key,numeric_precision,numeric_scale"
-                                      + " FROM system.columns\n"
+        final String tableSchemaQuery="SELECT database,table,name,type,default_kind,default_expression,comment,is_in_partition_key,is_in_sorting_key,is_in_primary_key,is_in_sampling_key,numeric_precision,numeric_scale,comment,is_in_partition_key,is_in_sorting_key,is_in_primary_key,is_in_sampling_key,numeric_precision,numeric_scale\"\n"
+                                      + "                                      + \" FROM system.columns\n"
                                       + "WHERE database = ? AND table = ?";
 
         List<OceanBaseColumn> columns = new ArrayList<>();
@@ -96,11 +95,11 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
                     while (resultSet.next()) {
                         String name = resultSet.getString(ColumnInfo.NAME.getName());
                         String type = resultSet.getString(ColumnInfo.TYPE.getName());
-                        if (type.contains(ClickHouseType.DECIMAL)){
-                            type=ClickHouseType.DECIMAL;
+                        if (type.contains(ClickHouseType.Decimal)){
+                            type=ClickHouseType.Decimal;
                         }
-                        if (type.contains(ClickHouseType.LOWCARDINALITY)){
-                            type=ClickHouseType.LOWCARDINALITY;
+                        if (type.contains(ClickHouseType.String)){
+                            type=ClickHouseType.String;
                         }
                         String comment = resultSet.getString(ColumnInfo.COMMENT.getName());
                         int numericPrecision = resultSet.getInt(ColumnInfo.NUMERIC_PRECISION.getName());
@@ -131,6 +130,7 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
         for (PartitionInfo partition : partitions) {
             partition.withPartitionKey(keyMap.get("partition_key"));
         }
+        LOG.info("databaseName:{},tableName:{},columns:{},tableKeys:{},partitions:{}",databaseName,tableName,columns,tableKeys,partitions);
         OceanBaseTable tableSchema  =
                 OceanBaseTable.TableSchemaBuilder.aTableSchema()
                         .withDatabase(databaseName)
@@ -199,7 +199,6 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
         if (Objects.nonNull(applyRoutesRules(obTables))) {
             obTables = applyRoutesRules(obTables).f0;
         }
-        // Create Database first
         List<String> databases =
                 obTables.stream()
                         .map(OceanBaseTable::getDatabase)
@@ -230,18 +229,41 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
 
     @Override
     public SourceFunction<RowData> buildSourceFunction(OceanBaseTable oceanBaseTable) {
-        SourceMigrateConfig dbMigrateConfig = migrationConfig.getSource();
-        Map<String, String> other = dbMigrateConfig.getOther();
+        Map<String, String> other = migrationConfig.getSource().getOther();
+        String jdbcUrl = other.get(ClickHouseConfig.JDBC_URL).replace("jdbc:", "");
 
-        ClickHouseReadOptions options = new ClickHouseReadOptions.Builder()
-                .withUrl(other.get(ClickHouseConfig.JDBC_URL))
-                .withUsername(other.get(ClickHouseConfig.USERNAME))
-                .withPassword(other.get(ClickHouseConfig.PASSWORD))
+        ClickHouseReadOptions clickHouseReadOptions = new ClickHouseReadOptions.Builder()
+                .withUrl(jdbcUrl)
                 .withDatabaseName(oceanBaseTable.getDatabase())
                 .withTableName(oceanBaseTable.getTable())
+                .withUseLocal(true)
                 .build();
-        List<String> files =  oceanBaseTable.getFields().stream().map(OceanBaseColumn::getName).collect(Collectors.toList());
 
-        return null;
+        List<OceanBaseColumn> fields = oceanBaseTable.getFields();
+        LogicalType[] fieldTypes = fields.stream()
+                .map(ClickHouseType::toFlinkType)
+                .toArray(LogicalType[]::new);
+
+        DataType[] dataTypes = Arrays.stream(fieldTypes)
+                .map(DataTypes::of)
+                .toArray(DataType[]::new);
+
+        List<String> fieldNames = fields.stream()
+                .map(OceanBaseColumn::getName)
+                .collect(Collectors.toList());
+
+        RowType rowType = RowType.of(fieldTypes, fieldNames.toArray(new String[0]));
+        TypeInformation<RowData> rowTypeInfo = InternalTypeInfo.of(rowType);
+
+        Properties connProps = new Properties();
+        connProps.setProperty(ClickHouseConfig.USERNAME, other.get(ClickHouseConfig.USERNAME));
+        connProps.setProperty(ClickHouseConfig.PASSWORD, other.get(ClickHouseConfig.PASSWORD));
+
+        return ClickHouseSourceUtils.createClickHouseSource(
+                clickHouseReadOptions,
+                connProps,
+                fieldNames.toArray(new String[0]),
+                dataTypes,
+                rowTypeInfo);
     }
 }

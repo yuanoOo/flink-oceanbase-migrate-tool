@@ -31,6 +31,7 @@ public class ClickHouseDDLGenTools {
                 columnStoreSql = " WITH COLUMN GROUP(all columns, each column)";
             }
         }
+        LOG.info("schemaList:{}",schemaList.toString());
         // name type default-value comment
         String colFormat = "`%s` %s %s %s";
         String finalColumnStoreSql = columnStoreSql;

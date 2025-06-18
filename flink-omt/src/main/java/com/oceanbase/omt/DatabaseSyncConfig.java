@@ -20,4 +20,6 @@ public interface DatabaseSyncConfig {
 
     // Source type
     String STARROCKS_TYPE = "starrocks";
+
+    String ClICKHOUSE_TYPE = "clickhouse";
 }

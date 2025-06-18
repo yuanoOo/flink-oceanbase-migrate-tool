@@ -22,6 +22,8 @@ import com.oceanbase.connector.flink.table.TableInfo;
 import com.oceanbase.omt.catalog.OceanBaseTable;
 import com.oceanbase.omt.catalog.TableIdentifier;
 import com.oceanbase.omt.sink.OceanBaseRowDataSerializationSchema;
+import com.oceanbase.omt.source.DataSourceType;
+import com.oceanbase.omt.source.TypeConverterFactory;
 import com.oceanbase.omt.source.starrocks.StarRocksType;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -38,12 +40,14 @@ public class DataChangeMapFunction extends RichMapFunction<RowData, DataChangeRe
 
     private final OceanBaseTable oceanBaseTable;
     private final Map<TableIdentifier, TableIdentifier> tableIdRouteMapping;
+    private final String type;
 
     public DataChangeMapFunction(
             OceanBaseTable oceanBaseTable,
-            Map<TableIdentifier, TableIdentifier> tableIdRouteMapping) {
+            Map<TableIdentifier, TableIdentifier> tableIdRouteMapping,String type) {
         this.oceanBaseTable = oceanBaseTable;
         this.tableIdRouteMapping = tableIdRouteMapping;
+        this.type = type;
     }
 
     @Override
@@ -77,7 +81,7 @@ public class DataChangeMapFunction extends RichMapFunction<RowData, DataChangeRe
                         table.getTable());
         List<LogicalType> logicalTypes =
                 table.getFields().stream()
-                        .map(StarRocksType::toFlinkDataType)
+                        .map(field-> TypeConverterFactory.getConverter(DataSourceType.FROM_VALUE.apply(type)).convert(field))
                         .collect(Collectors.toList());
         TableInfo tableInfo =
                 new TableInfo(

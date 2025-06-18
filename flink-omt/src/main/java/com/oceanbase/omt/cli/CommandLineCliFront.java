@@ -21,6 +21,7 @@ import com.oceanbase.omt.catalog.OceanBaseTable;
 import com.oceanbase.omt.parser.MigrationConfig;
 import com.oceanbase.omt.parser.PipelineConfig;
 import com.oceanbase.omt.parser.YamlParser;
+import com.oceanbase.omt.source.clickhouse.ClickHouseDatabaseSync;
 import com.oceanbase.omt.source.starrocks.StarRocksDatabaseSync;
 
 import org.apache.flink.annotation.VisibleForTesting;
@@ -52,6 +53,10 @@ public class CommandLineCliFront {
             case DatabaseSyncConfig.STARROCKS_TYPE:
                 createStarRocksSyncDatabase(migrationConfig);
                 break;
+
+            case DatabaseSyncConfig.ClICKHOUSE_TYPE:
+                createClickHouseSyncDatabase(migrationConfig);
+                break;
             default:
                 System.out.println("Unknown source type " + type);
                 System.exit(1);
@@ -79,6 +84,56 @@ public class CommandLineCliFront {
             System.exit(0);
         } else {
             System.exit(0);
+        }
+    }
+
+    private static void createClickHouseSyncDatabase(MigrationConfig migrationConfig)
+            throws Exception {
+        ClickHouseDatabaseSync clickHouseDatabaseSync = new ClickHouseDatabaseSync(migrationConfig);
+        CheckInfoPrinter(migrationConfig, clickHouseDatabaseSync);
+        clickHouseDatabaseSync.createTableInOb();
+
+        System.out.println(
+                "The above table has been created in OceanBase."
+                + "Please check whether it meets your expectations. \n"
+                + "If it does, enter Y and press Enter to start data migration."
+                + "Otherwise, enter N and the tool will exit.(Y/N)\n");
+        Scanner scanner = new Scanner(System.in);
+        String nextLine = scanner.nextLine();
+        if ("Y".equalsIgnoreCase(nextLine)) {
+            System.out.println("Starting data migration.");
+            submitFlinkJob(clickHouseDatabaseSync, migrationConfig);
+        } else if ("N".equalsIgnoreCase(nextLine)) {
+            System.out.println("Flink-OMT exited!");
+            System.exit(0);
+        } else {
+            System.exit(0);
+        }
+    }
+
+    private static void CheckInfoPrinter(
+            MigrationConfig migrationConfig, ClickHouseDatabaseSync clickHouseDatabaseSync) {
+        List<OceanBaseTable> obTables = clickHouseDatabaseSync.getObTables();
+        if (CollectionUtil.isNullOrEmpty(obTables)) {
+            String format =
+                    "\n ============= Warning: No tables were found with [(%s)] to migrate, the job will exit. ============";
+            System.err.println(String.format(format, migrationConfig.getSource().getTables()));
+            System.exit(1);
+        } else {
+            String welInfo =
+                    String.format(
+                            "============= The following tables will be migrate from %s to oceanbase ============",
+                            migrationConfig.getSource().getType());
+            System.out.println(welInfo);
+            obTables.forEach(
+                    oceanBaseTable -> {
+                        String table =
+                                String.format(
+                                        "%s.%s",
+                                        oceanBaseTable.getDatabase(), oceanBaseTable.getTable());
+                        System.out.println(table);
+                    });
+            System.out.println();
         }
     }
 

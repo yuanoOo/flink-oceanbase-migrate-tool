@@ -51,7 +51,7 @@ public class StarRocksDataBaseDirectLoadSync extends StarRocksDatabaseSync {
         if (Objects.nonNull(applyRoutesRules(oceanBaseTables))) {
             tableIdRouteMapping = applyRoutesRules(oceanBaseTables).f1;
         }
-
+        String type = migrationConfig.getSource().getType();
         SingleOutputStreamOperator<DataChangeRecord> source = null;
         DataStream<DataChangeRecord> recordDataStream = null;
         for (int i = 0; i < oceanBaseTables.size(); i++) {
@@ -59,14 +59,14 @@ public class StarRocksDataBaseDirectLoadSync extends StarRocksDatabaseSync {
             if (i == 0) {
                 source =
                         env.addSource(buildSourceFunction(oceanBaseTable))
-                                .map(new DataChangeMapFunction(oceanBaseTable, tableIdRouteMapping))
+                                .map(new DataChangeMapFunction(oceanBaseTable, tableIdRouteMapping,type))
                                 .name(buildSourceDescription(oceanBaseTable));
                 recordDataStream = source;
                 continue;
             }
             SingleOutputStreamOperator<DataChangeRecord> otherSource =
                     env.addSource(buildSourceFunction(oceanBaseTable))
-                            .map(new DataChangeMapFunction(oceanBaseTable, tableIdRouteMapping))
+                            .map(new DataChangeMapFunction(oceanBaseTable, tableIdRouteMapping,type))
                             .name(buildSourceDescription(oceanBaseTable));
             if (Objects.isNull(recordDataStream)) {
                 recordDataStream = source.union(otherSource);
