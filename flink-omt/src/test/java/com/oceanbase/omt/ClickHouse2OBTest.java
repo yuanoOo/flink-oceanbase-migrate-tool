@@ -1,68 +1,61 @@
 package com.oceanbase.omt;
 
 
-import static com.oceanbase.omt.source.starrocks.StarRocksJdbcUtils.executeDoubleColumnStatement;
-import static com.oceanbase.omt.source.starrocks.StarRocksJdbcUtils.obtainPartitionInfo;
-
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
 import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.connector.sink2.Sink;
+
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.connector.clickhouse.catalog.ClickHouseCatalog;
 import org.apache.flink.shaded.guava31.com.google.common.base.Strings;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.KeyedStream;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+
+import org.apache.flink.table.types.DataType;
+
 import org.apache.flink.util.CollectionUtil;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.mysql.cj.log.Log;
-import com.oceanbase.connector.flink.table.DataChangeRecord;
 import com.oceanbase.omt.base.OceanBaseMySQLTestBase;
 import com.oceanbase.omt.catalog.OceanBaseColumn;
 import com.oceanbase.omt.catalog.OceanBaseTable;
-import com.oceanbase.omt.catalog.OceanBaseTable.TableSchemaBuilder;
-import com.oceanbase.omt.catalog.TableIdentifier;
 import com.oceanbase.omt.parser.MigrationConfig;
 import com.oceanbase.omt.parser.OBMigrateConfig;
 import com.oceanbase.omt.parser.SourceMigrateConfig;
 import com.oceanbase.omt.parser.YamlParser;
 import com.oceanbase.omt.partition.PartitionInfo;
-import com.oceanbase.omt.partition.PartitionUtils;
-import com.oceanbase.omt.partition.PartitionUtils.RangeInfo;
+import com.oceanbase.omt.source.clickhouse.ClickHouseConfig;
 import com.oceanbase.omt.source.clickhouse.ClickHouseDDLGenTools;
 import com.oceanbase.omt.source.clickhouse.ClickHouseDatabaseSync;
 import com.oceanbase.omt.source.clickhouse.ClickHouseJdbcUtils;
 import com.oceanbase.omt.source.clickhouse.ClickHouseType;
 import com.oceanbase.omt.source.clickhouse.enums.ColumnInfo;
-import com.oceanbase.omt.source.starrocks.StarRocksDDLGenTools;
-import com.oceanbase.omt.source.starrocks.StarRocksType;
 import com.oceanbase.omt.utils.DataSourceUtils;
-import com.oceanbase.omt.utils.OBSinkType;
 import com.oceanbase.omt.utils.OceanBaseJdbcUtils;
 import com.starrocks.connector.flink.catalog.StarRocksCatalogException;
 
@@ -117,7 +110,49 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
                 tableNames.stream()
                         .map(ruleTable -> getTable(ruleTable.f0, ruleTable.f1))
                         .collect(Collectors.toList());
+        for (int i = 0; i < oceanBaseTableList.size(); i++) {
+            OceanBaseTable oceanBaseTable = oceanBaseTableList.get(i);
+            Map<String, String> other = source.getOther();
+
+            // 构建配置信息
+            ImmutableMap<String, String> configMap =
+                    ImmutableMap.<String, String>builder()
+                            .put(
+                                    ClickHouseConfig.JDBC_URL,
+                                    other.get(ClickHouseConfig.JDBC_URL))
+                            .put(
+                                    ClickHouseConfig.USERNAME,
+                                    other.get(ClickHouseConfig.USERNAME))
+                            .put(
+                                    ClickHouseConfig.PASSWORD,
+                                    other.get(ClickHouseConfig.PASSWORD))
+                            .put(ClickHouseConfig.TABLE_NAME, oceanBaseTable.getTable())
+                            .put(
+                                    ClickHouseConfig.DATABASE_NAME,
+                                    oceanBaseTable.getDatabase())
+                            .build();
+
+            HashMap<String, String> config = new HashMap<>(source.getOther());
+            config.putAll(configMap);
+
+
+            config.put(org.apache.flink.connector.clickhouse.config.ClickHouseConfig.DATABASE_NAME, config.get(ClickHouseConfig.DATABASE_NAME));
+            config.put(org.apache.flink.connector.clickhouse.config.ClickHouseConfig.URL, "clickhouse://114.215.194.83:8123");
+            config.put(org.apache.flink.connector.clickhouse.config.ClickHouseConfig.USERNAME, config.get(ClickHouseConfig.USERNAME));
+            config.put(org.apache.flink.connector.clickhouse.config.ClickHouseConfig.PASSWORD, config.get(ClickHouseConfig.PASSWORD));
+            config.put(org.apache.flink.connector.clickhouse.config.ClickHouseConfig.TABLE_NAME, config.get(ClickHouseConfig.TABLE_NAME));
+            config.put("scan.columns", config.get(ClickHouseConfig.SCAN_COLUMNS));
+            config.put("scan.filter", config.get(ClickHouseConfig.SCAN_FILTER));
+
+        }
         return oceanBaseTableList;
+    }
+
+
+    @Test
+    public void test1() throws Exception {
+        List<OceanBaseTable> obTables = getObTables();
+        LOG.info("obTables:{}",obTables);
     }
     @Test
     public void createTable() throws IOException, SQLException {
@@ -234,11 +269,8 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
         LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
         env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
         env.enableCheckpointing(1000);
-        // 1. Parse config
         MigrationConfig migrationConfig = YamlParser.parseResource("clickhouse.yaml");
         DataSource dataSource = DataSourceUtils.getOBDataSource(migrationConfig.getOceanbase());
-
-        // 2. Obtain StarRocks MetaData
         ClickHouseDatabaseSync clickHouseDatabaseSync = new ClickHouseDatabaseSync(migrationConfig);
         clickHouseDatabaseSync.createTableInOb();
         clickHouseDatabaseSync.buildPipeline(env);
@@ -269,11 +301,8 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
                     while (resultSet.next()) {
                         String name = resultSet.getString(ColumnInfo.NAME.getName());
                         String type = resultSet.getString(ColumnInfo.TYPE.getName());
-                        if (type.contains(ClickHouseType.DECIMAL)){
-                            type=ClickHouseType.DECIMAL;
-                        }
-                        if (type.contains(ClickHouseType.LOWCARDINALITY)){
-                            type=ClickHouseType.LOWCARDINALITY;
+                        if (type.contains(ClickHouseType.Decimal)){
+                            type=ClickHouseType.Decimal;
                         }
                         String comment = resultSet.getString(ColumnInfo.COMMENT.getName());
                         int numericPrecision = resultSet.getInt(ColumnInfo.NUMERIC_PRECISION.getName());
@@ -469,6 +498,87 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
         getKeys("test1","orders1",tableKeys);
         LOG.info("tableKeys:{}", tableKeys);
     }
+
+
+
+    @Test
+    public void testClickHouse() throws SQLException {
+        Connection connection = ClickHouseJdbcUtils.getConnection("jdbc:clickhouse://114.215.194.83:8123", "root", "123456");
+        Statement stmt = connection.createStatement();
+
+        SourceMigrateConfig source = migrationConfig.getSource();
+        try {
+            List<OceanBaseTable> obTables = getObTables();
+            for (OceanBaseTable obTable : obTables) {
+                LOG.info("obTable:{}", obTable.getTable());
+            }
+            for (OceanBaseTable oceanBaseTable : obTables) {
+                TableSchema.Builder builder = TableSchema.builder();
+                oceanBaseTable
+                        .getFields()
+                        .forEach(
+                                oceanBaseColumn -> {
+                                    builder.field(
+                                            oceanBaseColumn.getName(),
+                                            DataTypes.of(ClickHouseType.toFlinkType(oceanBaseColumn)));
+                                });
+
+                TableSchema tableSchema = builder.build();
+                String sql = "SELECT * FROM %s.%s";
+                String format = String.format(sql, oceanBaseTable.getDatabase(), oceanBaseTable.getTable());
+                ResultSet resultSet = stmt.executeQuery(format);
+                while (resultSet.next()){
+                    System.out.println(resultSet.getString("order_id"));
+                }
+                System.out.println("-------------------------");
+                RowData rowData = convertToRowData(resultSet, tableSchema);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+
+
+    }
+
+
+
+    @Test
+    public void testClickHouseFlink() {
+        EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
+
+        TableEnvironment tEnv = TableEnvironment.create(settings);
+
+        Map<String, String> props = new HashMap<>();
+        props.put(ClickHouseConfig.DATABASE_NAME, "test1");
+        props.put(ClickHouseConfig.JDBC_URL, "jdbc:clickhouse://114.215.194.83:8123");
+        props.put(ClickHouseConfig.USERNAME, "root");
+        props.put(ClickHouseConfig.PASSWORD, "123456");
+        Catalog cHcatalog = new ClickHouseCatalog("clickhouse", props);
+        tEnv.registerCatalog("clickhouse", cHcatalog);
+        tEnv.useCatalog("clickhouse");
+
+        tEnv.executeSql("select * from `test1`.`orders1`");
+    }
+
+
+
+    private RowData convertToRowData(ResultSet rs, TableSchema schema) throws SQLException {
+        // 获取表结构中的字段类型
+        DataType[] fieldTypes = schema.getFieldDataTypes();
+        // 创建GenericRowData（Flink通用的行数据实现）
+        GenericRowData rowData = new GenericRowData(fieldTypes.length);
+
+        for (int i = 0; i < fieldTypes.length; i++) {
+            // 注意：ResultSet的列索引从1开始
+            Object value = rs.getObject(i + 1);
+            // 根据Flink数据类型进行转换
+            rowData.setField(i, value);
+        }
+        return rowData;
+    }
+
+
 
 
 }

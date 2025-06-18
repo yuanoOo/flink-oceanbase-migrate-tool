@@ -25,7 +25,7 @@ oceanbase:
   url: jdbc:mysql://121.43.131.209:2810
   username: root@sun
   password: test1111
-  schema-name:
+  schema-name: test1
 
 routes:
   - source-table: test1.orders1
