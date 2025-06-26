@@ -4,12 +4,15 @@ import static org.apache.flink.table.types.logical.DecimalType.MAX_PRECISION;
 
 import java.util.Arrays;
 import java.util.List;
-
 import java.util.Objects;
-import java.util.Stack;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import org.apache.flink.shaded.clickhouse.ru.yandex.clickhouse.domain.ClickHouseDataType;
+import org.apache.flink.shaded.clickhouse.ru.yandex.clickhouse.response.ClickHouseColumnInfo;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.types.DataType;
+
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
@@ -21,6 +24,7 @@ import com.oceanbase.omt.catalog.OceanBaseMySQLType;
  * @author yixing
  */
 public class ClickHouseType {
+    private static final Pattern INTERNAL_TYPE_PATTERN = Pattern.compile(".*?\\((?<type>.*)\\)");
     private static final String DOUBLE_PRECISION_FORMAT = "%s(%s,%s)";
 
 
@@ -73,6 +77,7 @@ public class ClickHouseType {
     public static final String Nested="Nested";
     public static final String AggregateFunction="AggregateFunction";
 
+    public static final List<String> DateTypes= Arrays.asList(Date,Date32,DateTime,DateTime32,DateTime64);
 
 
     public static String toOceanBaseMySQLType(OceanBaseColumn fieldSchema) {
@@ -97,10 +102,10 @@ public class ClickHouseType {
                 return OceanBaseMySQLType.INT;
             case Int64:
             case UInt32:
+            case UInt64:
                 return OceanBaseMySQLType.BIGINT;
             case Int128:
             case Int256:
-            case UInt64:
             case UInt128:
             case UInt256:
                 return java.lang.String.format(
@@ -121,27 +126,27 @@ public class ClickHouseType {
             case String:
             case Enum8:
             case Enum16:
+            case FixedString:
                 return String.format(
                         SINGLE_PRECISION_FORMAT,
                         OceanBaseMySQLType.VARCHAR,
                         OceanBaseMySQLType.RE_VARCHAR_SIZE);
-            case FixedString:
+
             case IPv4:
-            case IPv6:
-            case UUID:
-                Integer sRVarColumnSize = fieldSchema.getColumnSize();
-                Preconditions.checkState(Objects.nonNull(sRVarColumnSize));
-                if (sRVarColumnSize > OceanBaseMySQLType.MAX_VARCHAR_SIZE) {
-                    return OceanBaseMySQLType.MEDIUMTEXT;
-                }
                 return String.format(
-                        SINGLE_PRECISION_FORMAT, OceanBaseMySQLType.VARCHAR, sRVarColumnSize);
+                    SINGLE_PRECISION_FORMAT, OceanBaseMySQLType.VARCHAR, 15);
+            case IPv6:
+                return String.format(
+                    SINGLE_PRECISION_FORMAT, OceanBaseMySQLType.VARCHAR, 39);
+            case UUID:
+                return String.format(
+                        SINGLE_PRECISION_FORMAT, OceanBaseMySQLType.VARCHAR, 36);
             case Date:
                 return OceanBaseMySQLType.DATE;
             case DateTime:
             case DateTime32:
             case DateTime64:
-                return OceanBaseMySQLType.TIMESTAMP;
+                return OceanBaseMySQLType.DATETIME;
             default:
                 throw new UnsupportedOperationException(
                         "Unsupported ClickHouse type: " + fieldSchema.getTypeString());
@@ -201,7 +206,7 @@ public class ClickHouseType {
             case IPv4:
             case IPv6:
             case UUID:
-                return DataTypes.VARCHAR(fieldSchema.getColumnSize()).getLogicalType();
+                return DataTypes.STRING().getLogicalType();
             case Date:
             case Date32:
                 return DataTypes.DATE().getLogicalType();
@@ -229,6 +234,15 @@ public class ClickHouseType {
             default:
                 throw new UnsupportedOperationException(
                         "Unsupported type:" + fieldSchema.getTypeString());
+        }
+    }
+    private static String getInternalClickHouseType(String clickHouseTypeLiteral) {
+        Matcher matcher = INTERNAL_TYPE_PATTERN.matcher(clickHouseTypeLiteral);
+        if (matcher.find()) {
+            return matcher.group("type");
+        } else {
+            throw new CatalogException(
+                String.format("No content found in the bucket of '%s'", clickHouseTypeLiteral));
         }
     }
 }

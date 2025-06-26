@@ -16,13 +16,13 @@ import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
+import com.oceanbase.omt.partition.ClickHousePartitionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.clickhouse.catalog.ClickHouseCatalog;
 import org.apache.flink.shaded.guava31.com.google.common.base.Strings;
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
@@ -110,49 +110,21 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
                 tableNames.stream()
                         .map(ruleTable -> getTable(ruleTable.f0, ruleTable.f1))
                         .collect(Collectors.toList());
-        for (int i = 0; i < oceanBaseTableList.size(); i++) {
-            OceanBaseTable oceanBaseTable = oceanBaseTableList.get(i);
-            Map<String, String> other = source.getOther();
-
-            // 构建配置信息
-            ImmutableMap<String, String> configMap =
-                    ImmutableMap.<String, String>builder()
-                            .put(
-                                    ClickHouseConfig.JDBC_URL,
-                                    other.get(ClickHouseConfig.JDBC_URL))
-                            .put(
-                                    ClickHouseConfig.USERNAME,
-                                    other.get(ClickHouseConfig.USERNAME))
-                            .put(
-                                    ClickHouseConfig.PASSWORD,
-                                    other.get(ClickHouseConfig.PASSWORD))
-                            .put(ClickHouseConfig.TABLE_NAME, oceanBaseTable.getTable())
-                            .put(
-                                    ClickHouseConfig.DATABASE_NAME,
-                                    oceanBaseTable.getDatabase())
-                            .build();
-
-            HashMap<String, String> config = new HashMap<>(source.getOther());
-            config.putAll(configMap);
-
-
-            config.put(org.apache.flink.connector.clickhouse.config.ClickHouseConfig.DATABASE_NAME, config.get(ClickHouseConfig.DATABASE_NAME));
-            config.put(org.apache.flink.connector.clickhouse.config.ClickHouseConfig.URL, "clickhouse://114.215.194.83:8123");
-            config.put(org.apache.flink.connector.clickhouse.config.ClickHouseConfig.USERNAME, config.get(ClickHouseConfig.USERNAME));
-            config.put(org.apache.flink.connector.clickhouse.config.ClickHouseConfig.PASSWORD, config.get(ClickHouseConfig.PASSWORD));
-            config.put(org.apache.flink.connector.clickhouse.config.ClickHouseConfig.TABLE_NAME, config.get(ClickHouseConfig.TABLE_NAME));
-            config.put("scan.columns", config.get(ClickHouseConfig.SCAN_COLUMNS));
-            config.put("scan.filter", config.get(ClickHouseConfig.SCAN_FILTER));
-
-        }
         return oceanBaseTableList;
     }
 
 
     @Test
     public void test1() throws Exception {
+        OBMigrateConfig obMigrateConfig = this.migrationConfig.getOceanbase();
         List<OceanBaseTable> obTables = getObTables();
-        LOG.info("obTables:{}",obTables);
+        System.out.println("obTables:{}"+obTables.get(1));
+        String columnStoreType = obMigrateConfig.getColumnStoreType();
+        List<String> strings = ClickHouseDDLGenTools.buildOBCreateTableDDL(obTables, columnStoreType);
+        List<PartitionInfo> partition = obTables.get(1).getPartition();
+        String ddl = strings.get(1);
+        String s = ClickHousePartitionUtils.buildOBPartitionWithDDL(ddl, partition);
+        System.out.println(s);
     }
     @Test
     public void createTable() throws IOException, SQLException {
@@ -301,6 +273,10 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
                     while (resultSet.next()) {
                         String name = resultSet.getString(ColumnInfo.NAME.getName());
                         String type = resultSet.getString(ColumnInfo.TYPE.getName());
+                        boolean isPartitionKey = resultSet.getBoolean(ColumnInfo.IS_IN_PARTITION_KEY.getName());
+                        if (isPartitionKey){
+                            tableKeys.add(name);
+                        }
                         if (type.contains(ClickHouseType.Decimal)){
                             type=ClickHouseType.Decimal;
                         }
@@ -326,13 +302,13 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
             throw new RuntimeException(e);
         }
         List<PartitionInfo> partitions = getPartitions(databaseName, tableName, columns);
+        for (PartitionInfo partition : partitions) {
+            partition.withPartitionKey(tableKeys.get(0));
+        }
         Map<String, String> keyMap=new HashMap<>();
         getKeys(databaseName, tableName,keyMap);
         String primaryKey = keyMap.get("primary_key");
         tableKeys.add(primaryKey);
-        for (PartitionInfo partition : partitions) {
-            partition.withPartitionKey(keyMap.get("partition_key"));
-        }
         OceanBaseTable tableSchema  =
                 OceanBaseTable.TableSchemaBuilder.aTableSchema()
                         .withDatabase(databaseName)
@@ -502,48 +478,6 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
 
 
     @Test
-    public void testClickHouse() throws SQLException {
-        Connection connection = ClickHouseJdbcUtils.getConnection("jdbc:clickhouse://114.215.194.83:8123", "root", "123456");
-        Statement stmt = connection.createStatement();
-
-        SourceMigrateConfig source = migrationConfig.getSource();
-        try {
-            List<OceanBaseTable> obTables = getObTables();
-            for (OceanBaseTable obTable : obTables) {
-                LOG.info("obTable:{}", obTable.getTable());
-            }
-            for (OceanBaseTable oceanBaseTable : obTables) {
-                TableSchema.Builder builder = TableSchema.builder();
-                oceanBaseTable
-                        .getFields()
-                        .forEach(
-                                oceanBaseColumn -> {
-                                    builder.field(
-                                            oceanBaseColumn.getName(),
-                                            DataTypes.of(ClickHouseType.toFlinkType(oceanBaseColumn)));
-                                });
-
-                TableSchema tableSchema = builder.build();
-                String sql = "SELECT * FROM %s.%s";
-                String format = String.format(sql, oceanBaseTable.getDatabase(), oceanBaseTable.getTable());
-                ResultSet resultSet = stmt.executeQuery(format);
-                while (resultSet.next()){
-                    System.out.println(resultSet.getString("order_id"));
-                }
-                System.out.println("-------------------------");
-                RowData rowData = convertToRowData(resultSet, tableSchema);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-
-
-    }
-
-
-
-    @Test
     public void testClickHouseFlink() {
         EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
 
@@ -562,21 +496,6 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
     }
 
 
-
-    private RowData convertToRowData(ResultSet rs, TableSchema schema) throws SQLException {
-        // 获取表结构中的字段类型
-        DataType[] fieldTypes = schema.getFieldDataTypes();
-        // 创建GenericRowData（Flink通用的行数据实现）
-        GenericRowData rowData = new GenericRowData(fieldTypes.length);
-
-        for (int i = 0; i < fieldTypes.length; i++) {
-            // 注意：ResultSet的列索引从1开始
-            Object value = rs.getObject(i + 1);
-            // 根据Flink数据类型进行转换
-            rowData.setField(i, value);
-        }
-        return rowData;
-    }
 
 
 

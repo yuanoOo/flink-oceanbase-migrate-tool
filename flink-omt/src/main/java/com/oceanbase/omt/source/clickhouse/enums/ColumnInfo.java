@@ -16,6 +16,10 @@ public enum ColumnInfo {
     IS_NULLABLE("is_nullable"),
     COMMENT("comment"),
     NUMERIC_PRECISION("numeric_precision"),
-    NUMERIC_SCALE("numeric_scale");
+    NUMERIC_SCALE("numeric_scale"),
+    IS_IN_PARTITION_KEY("is_in_partition_key"),
+    IS_IN_PRIMARY_KEY("is_in_primary_key"),
+    IS_IN_SORTING_KEY("is_in_sorting_key"),
+    IS_IN_SAMPLING_KEY("is_in_sampling_key");
     private final String name;
 }

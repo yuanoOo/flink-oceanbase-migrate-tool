@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.oceanbase.omt.partition.ClickHousePartitionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.flink.shaded.guava31.com.google.common.base.Strings;
 import org.apache.flink.util.CollectionUtil;
@@ -19,8 +20,7 @@ import com.oceanbase.omt.source.starrocks.StarRocksType;
 
 public class ClickHouseDDLGenTools {
     private static final Logger LOG = LoggerFactory.getLogger(StarRocksDDLGenTools.class);
-    public static List<String> buildOBCreateTableDDL(
-            List<OceanBaseTable> schemaList, String columnStoreType) {
+    public static List<String> buildOBCreateTableDDL(List<OceanBaseTable> schemaList, String columnStoreType){
         String prefix = "CREATE TABLE IF NOT EXISTS %s (%s %s)";
         String columnStoreSql = "";
         if (StringUtils.isNotBlank(columnStoreType)) {
@@ -31,58 +31,61 @@ public class ClickHouseDDLGenTools {
                 columnStoreSql = " WITH COLUMN GROUP(all columns, each column)";
             }
         }
-        LOG.info("schemaList:{}",schemaList.toString());
         // name type default-value comment
         String colFormat = "`%s` %s %s %s";
         String finalColumnStoreSql = columnStoreSql;
         List<String> tableDDLs =
-                schemaList.stream()
-                        .map(
-                                schema -> {
-                                    // Relate column
-                                    List<OceanBaseColumn> fields = schema.getFields();
-                                    String filedStr =
-                                            fields.stream()
-                                                    .map(
-                                                            fieldSchema -> {
-                                                                String oceanBaseType =
-                                                                        ClickHouseType
-                                                                                .toOceanBaseMySQLType(
-                                                                                        fieldSchema);
-                                                                return String.format(
-                                                                        colFormat,
-                                                                        fieldSchema.getName(),
-                                                                        oceanBaseType,
-                                                                        buildDefaultValue(
-                                                                                fieldSchema),
-                                                                        buildComment(fieldSchema));
-                                                            })
-                                                    .collect(Collectors.joining(","));
+            schemaList.stream()
+                .map(
+                    schema -> {
+                        // Relate column
+                        List<OceanBaseColumn> fields = schema.getFields();
+                        String filedStr =
+                            fields.stream()
+                                .map(
+                                    fieldSchema -> {
+                                        String oceanBaseType =
+                                            ClickHouseType
+                                                .toOceanBaseMySQLType(
+                                                    fieldSchema);
+                                        return String.format(
+                                            colFormat,
+                                            fieldSchema.getName(),
+                                            oceanBaseType,
+                                            buildDefaultValue(
+                                                fieldSchema),
+                                            buildComment(fieldSchema));
+                                    })
+                                .collect(Collectors.joining(","));
 
-                                    // Relate table
-                                    String tableName =
-                                            String.format(
-                                                    "`%s`.`%s`",
-                                                    schema.getDatabase(), schema.getTable());
-                                    List<String> keys = schema.getKeys();
-                                    String primaryKeyStr = "";
-                                    if (!CollectionUtil.isNullOrEmpty(keys)) {
-                                        primaryKeyStr =
-                                                String.format(
-                                                        ",PRIMARY KEY(%s)", String.join(",", keys));
-                                    }
+                        // Relate table
+                        String tableName =
+                            String.format(
+                                "`%s`.`%s`",
+                                schema.getDatabase(), schema.getTable());
+                        List<String> keys = schema.getKeys();
+                        String primaryKeyStr = "";
+                        if (!CollectionUtil.isNullOrEmpty(keys)) {
 
-                                    String noPartitionDDl =
-                                            String.format(
-                                                    prefix, tableName, filedStr, primaryKeyStr);
-                                    String obPartitionWithDDL =
-                                            buildOBPartitionWithDDL(
-                                                    noPartitionDDl, schema.getPartition());
-                                    return obPartitionWithDDL + finalColumnStoreSql;
-                                })
-                        .collect(Collectors.toList());
+                            List<String> collectKeys = keys.stream().distinct().collect(Collectors.toList());
+
+                            primaryKeyStr =
+                                String.format(
+                                    ",PRIMARY KEY(%s)", String.join(",", collectKeys));
+                        }
+
+                        String noPartitionDDl =
+                            String.format(
+                                prefix, tableName, filedStr, primaryKeyStr);
+                        String obPartitionWithDDL =
+                            buildOBPartitionWithDDL(
+                                noPartitionDDl, schema.getPartition());
+                        return obPartitionWithDDL + finalColumnStoreSql;
+                    })
+                .collect(Collectors.toList());
         return tableDDLs;
     }
+
 
     private static String buildDefaultValue(OceanBaseColumn fieldSchema) {
         String defaultValue = "";
@@ -101,7 +104,7 @@ public class ClickHouseDDLGenTools {
     }
 
     public static String buildOBPartitionWithDDL(String ddl, List<PartitionInfo> partitions) {
-        return PartitionUtils.buildOBPartitionWithDDL(ddl, partitions);
+        return ClickHousePartitionUtils.buildOBPartitionWithDDL(ddl, partitions);
     }
 
 }

@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.clickhouse.internal.options.ClickHouseReadOptions;
+import org.apache.flink.shaded.clickhouse.ru.yandex.clickhouse.response.ClickHouseColumnInfo;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
@@ -86,7 +87,9 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
                                       + "WHERE database = ? AND table = ?";
 
         List<OceanBaseColumn> columns = new ArrayList<>();
+        List<String> partitionTypes= new ArrayList<>();
         List<String> tableKeys = new ArrayList<>();
+        List<String> primaryKeys = new ArrayList<>();
         try (Connection connection = getConnection()) {
             try (PreparedStatement statement = connection.prepareStatement(tableSchemaQuery)) {
                 statement.setObject(1, databaseName);
@@ -100,6 +103,19 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
                         }
                         if (type.contains(ClickHouseType.String)){
                             type=ClickHouseType.String;
+                        }
+                        boolean isPartitionKey = resultSet.getBoolean(ColumnInfo.IS_IN_PARTITION_KEY.getName());
+                        boolean isPrimaryKey = resultSet.getBoolean(ColumnInfo.IS_IN_PRIMARY_KEY.getName());
+                        boolean isSortingKey = resultSet.getBoolean(ColumnInfo.IS_IN_SORTING_KEY.getName());
+                        if (isPartitionKey){
+                            tableKeys.add(name);
+                            partitionTypes.add(type);
+                        }
+                        if (isPrimaryKey){
+                            primaryKeys.add(name.trim());
+                        }
+                        if (isSortingKey){
+                            primaryKeys.add(name.trim());
                         }
                         String comment = resultSet.getString(ColumnInfo.COMMENT.getName());
                         int numericPrecision = resultSet.getInt(ColumnInfo.NUMERIC_PRECISION.getName());
@@ -125,21 +141,20 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
         List<PartitionInfo> partitions = getPartitions(databaseName, tableName, columns);
         Map<String, String> keyMap=new HashMap<>();
         getKeys(databaseName, tableName,keyMap);
-        String primaryKey = keyMap.get("primary_key");
-        tableKeys.add(primaryKey);
         for (PartitionInfo partition : partitions) {
-            partition.withPartitionKey(keyMap.get("partition_key"));
+            partition.withPartitionKey(String.join(",", tableKeys));
+            partition.withPartitionKeyType(partitionTypes);
+            partition.withPartitionKeyExpression(keyMap.get("partition_key"));
         }
-        LOG.info("databaseName:{},tableName:{},columns:{},tableKeys:{},partitions:{}",databaseName,tableName,columns,tableKeys,partitions);
-        OceanBaseTable tableSchema  =
-                OceanBaseTable.TableSchemaBuilder.aTableSchema()
+
+        return OceanBaseTable.TableSchemaBuilder.aTableSchema()
                         .withDatabase(databaseName)
                         .withTable(tableName)
                         .withFields(columns)
-                        .withKeys(tableKeys)
+                        .withKeys(primaryKeys)
                         .withPartition(partitions)
                         .build();
-        return tableSchema;
+
     }
 
 
@@ -236,9 +251,7 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
                 .withUrl(jdbcUrl)
                 .withDatabaseName(oceanBaseTable.getDatabase())
                 .withTableName(oceanBaseTable.getTable())
-                .withUseLocal(true)
                 .build();
-
         List<OceanBaseColumn> fields = oceanBaseTable.getFields();
         LogicalType[] fieldTypes = fields.stream()
                 .map(ClickHouseType::toFlinkType)
@@ -264,6 +277,6 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
                 connProps,
                 fieldNames.toArray(new String[0]),
                 dataTypes,
-                rowTypeInfo);
+                rowTypeInfo,fieldTypes);
     }
 }

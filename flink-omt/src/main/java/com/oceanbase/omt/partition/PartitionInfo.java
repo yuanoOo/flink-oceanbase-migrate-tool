@@ -26,6 +26,8 @@ public class PartitionInfo implements Serializable {
 
     private String partitionKey;
 
+    private String partitionKeyExpression;
+
     private String distributionKey;
 
     private Integer buckets;
@@ -106,6 +108,15 @@ public class PartitionInfo implements Serializable {
     public PartitionInfo withPartitionKeyType(List<String> partitionKeyType) {
         this.partitionKeyType = partitionKeyType;
         return this;
+    }
+
+    public PartitionInfo withPartitionKeyExpression(String partitionKeyExpression) {
+        this.partitionKeyExpression = partitionKeyExpression;
+        return this;
+    }
+
+    public String getPartitionKeyExpression() {
+        return partitionKeyExpression;
     }
 
     @Override
