@@ -8,6 +8,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +19,7 @@ import java.util.stream.Collectors;
 import javax.sql.DataSource;
 
 import com.oceanbase.omt.partition.ClickHousePartitionUtils;
+import com.oceanbase.omt.source.starrocks.StarRocksDatabaseSync;
 import org.apache.commons.lang.StringUtils;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 
@@ -25,15 +28,11 @@ import org.apache.flink.connector.clickhouse.catalog.ClickHouseCatalog;
 import org.apache.flink.shaded.guava31.com.google.common.base.Strings;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.DataTypes;
+
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.data.GenericRowData;
-import org.apache.flink.table.data.RowData;
 
-import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.catalog.Catalog;
 
 import org.apache.flink.util.CollectionUtil;
 import org.junit.Before;
@@ -61,8 +60,7 @@ import com.starrocks.connector.flink.catalog.StarRocksCatalogException;
 
 public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
     protected MigrationConfig migrationConfig;
-    private static final Logger LOG = LoggerFactory.getLogger(StarRocks2OBTest.class);
-
+    private static final Logger LOG = LoggerFactory.getLogger(ClickHouse2OBTest.class);
 
     @Before
     public void init() throws IOException {
@@ -78,8 +76,6 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
         initialize(sourceDataSource.getConnection(), "sql/clickHouse-sql.sql");
     }
 
-
-
     @Test
     public void close() throws IOException, SQLException {
         MigrationConfig migrationConfig = YamlParser.parseResource("clickhouse.yaml");
@@ -92,10 +88,6 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
     public void getSourceConnection() throws Exception {
         SourceMigrateConfig source = migrationConfig.getSource();
         LOG.info("source:{}", source);
-        //DataSource sourceDataSource =
-        //        DataSourceUtils.getSourceDataSource(migrationConfig.getSource());
-        //crateDataBases(sourceDataSource.getConnection(), "test1", "test2");
-
     }
 
     public List<OceanBaseTable> getObTables() throws IOException {
@@ -125,6 +117,18 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
         String ddl = strings.get(1);
         String s = ClickHousePartitionUtils.buildOBPartitionWithDDL(ddl, partition);
         System.out.println(s);
+    }
+
+    @Test
+    public void testList() throws Exception {
+        OBMigrateConfig obMigrateConfig = this.migrationConfig.getOceanbase();
+        List<OceanBaseTable> obTables = getObTables();
+        System.out.println("obTables:{}"+obTables.get(3));
+        String columnStoreType = obMigrateConfig.getColumnStoreType();
+        List<String> strings = ClickHouseDDLGenTools.buildOBCreateTableDDL(obTables, columnStoreType);
+        List<PartitionInfo> partition = obTables.get(3).getPartition();
+        String ddl = strings.get(3);
+        LOG.info(ddl);
     }
     @Test
     public void createTable() throws IOException, SQLException {
@@ -242,7 +246,7 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
         env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
         env.enableCheckpointing(1000);
         MigrationConfig migrationConfig = YamlParser.parseResource("clickhouse.yaml");
-        DataSource dataSource = DataSourceUtils.getOBDataSource(migrationConfig.getOceanbase());
+        DataSourceUtils.getOBDataSource(migrationConfig.getOceanbase());
         ClickHouseDatabaseSync clickHouseDatabaseSync = new ClickHouseDatabaseSync(migrationConfig);
         clickHouseDatabaseSync.createTableInOb();
         clickHouseDatabaseSync.buildPipeline(env);
@@ -250,21 +254,16 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
 
     }
 
-    private void assertContent(Connection connection, List<String> expected, String tableName)
-            throws SQLException {
-        List<String> actual = queryTable(connection, tableName);
-        assertEqualsInAnyOrder(expected, actual);
-    }
-
-
     public OceanBaseTable getTable(String databaseName, String tableName)
             throws StarRocksCatalogException {
-        final String tableSchemaQuery="SELECT database,table,name,type,default_kind,default_expression,comment,is_in_partition_key,is_in_sorting_key,is_in_primary_key,is_in_sampling_key,numeric_precision,numeric_scale,comment,is_in_partition_key,is_in_sorting_key,is_in_primary_key,is_in_sampling_key,numeric_precision,numeric_scale"
-                                      + " FROM system.columns\n"
-                                      + "WHERE database = ? AND table = ?";
+        final String tableSchemaQuery="SELECT database,table,name,type,default_kind,default_expression,comment,is_in_partition_key,is_in_sorting_key,is_in_primary_key,is_in_sampling_key,numeric_precision,numeric_scale,comment,is_in_partition_key,is_in_sorting_key,is_in_primary_key,is_in_sampling_key,numeric_precision,numeric_scale\"\n"
+            + "                                      + \" FROM system.columns\n"
+            + "WHERE database = ? AND table = ?";
 
         List<OceanBaseColumn> columns = new ArrayList<>();
+        List<String> partitionTypes= new ArrayList<>();
         List<String> tableKeys = new ArrayList<>();
+        List<String> primaryKeys = new ArrayList<>();
         try (Connection connection = getConnection()) {
             try (PreparedStatement statement = connection.prepareStatement(tableSchemaQuery)) {
                 statement.setObject(1, databaseName);
@@ -273,26 +272,38 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
                     while (resultSet.next()) {
                         String name = resultSet.getString(ColumnInfo.NAME.getName());
                         String type = resultSet.getString(ColumnInfo.TYPE.getName());
-                        boolean isPartitionKey = resultSet.getBoolean(ColumnInfo.IS_IN_PARTITION_KEY.getName());
-                        if (isPartitionKey){
-                            tableKeys.add(name);
-                        }
                         if (type.contains(ClickHouseType.Decimal)){
                             type=ClickHouseType.Decimal;
+                        }
+                        if (type.contains(ClickHouseType.String)){
+                            type=ClickHouseType.String;
+                        }
+                        boolean isPartitionKey = resultSet.getBoolean(ColumnInfo.IS_IN_PARTITION_KEY.getName());
+                        boolean isPrimaryKey = resultSet.getBoolean(ColumnInfo.IS_IN_PRIMARY_KEY.getName());
+                        boolean isSortingKey = resultSet.getBoolean(ColumnInfo.IS_IN_SORTING_KEY.getName());
+                        if (isPartitionKey){
+                            tableKeys.add(name);
+                            partitionTypes.add(type);
+                        }
+                        if (isPrimaryKey){
+                            primaryKeys.add(name.trim());
+                        }
+                        if (isSortingKey){
+                            primaryKeys.add(name.trim());
                         }
                         String comment = resultSet.getString(ColumnInfo.COMMENT.getName());
                         int numericPrecision = resultSet.getInt(ColumnInfo.NUMERIC_PRECISION.getName());
                         int numericScale = resultSet.getInt(ColumnInfo.NUMERIC_SCALE.getName());
 
                         OceanBaseColumn column =
-                                OceanBaseColumn.FieldSchemaBuilder.aFieldSchema()
-                                        .withName(name)
-                                        .withDataType(type)
-                                        .withTypeString(type)
-                                        .withComment(comment)
-                                        .withColumnSize(numericPrecision)
-                                        .withNumericScale(numericScale)
-                                        .build();
+                            OceanBaseColumn.FieldSchemaBuilder.aFieldSchema()
+                                .withName(name)
+                                .withDataType(type)
+                                .withTypeString(type)
+                                .withComment(comment)
+                                .withColumnSize(numericPrecision)
+                                .withNumericScale(numericScale)
+                                .build();
 
                         columns.add(column);
                     }
@@ -302,22 +313,21 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
             throw new RuntimeException(e);
         }
         List<PartitionInfo> partitions = getPartitions(databaseName, tableName, columns);
-        for (PartitionInfo partition : partitions) {
-            partition.withPartitionKey(tableKeys.get(0));
-        }
         Map<String, String> keyMap=new HashMap<>();
         getKeys(databaseName, tableName,keyMap);
-        String primaryKey = keyMap.get("primary_key");
-        tableKeys.add(primaryKey);
-        OceanBaseTable tableSchema  =
-                OceanBaseTable.TableSchemaBuilder.aTableSchema()
-                        .withDatabase(databaseName)
-                        .withTable(tableName)
-                        .withFields(columns)
-                        .withKeys(tableKeys)
-                        .withPartition(partitions)
-                        .build();
-        return tableSchema;
+        for (PartitionInfo partition : partitions) {
+            partition.withPartitionKey(String.join(",", tableKeys));
+            partition.withPartitionKeyType(partitionTypes);
+            partition.withPartitionKeyExpression(keyMap.get("partition_key"));
+        }
+
+        return OceanBaseTable.TableSchemaBuilder.aTableSchema()
+            .withDatabase(databaseName)
+            .withTable(tableName)
+            .withFields(columns)
+            .withKeys(primaryKeys)
+            .withPartition(partitions)
+            .build();
     }
 
 
@@ -475,8 +485,6 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
         LOG.info("tableKeys:{}", tableKeys);
     }
 
-
-
     @Test
     public void testClickHouseFlink() {
         EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
@@ -494,10 +502,5 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
 
         tEnv.executeSql("select * from `test1`.`orders1`");
     }
-
-
-
-
-
 
 }

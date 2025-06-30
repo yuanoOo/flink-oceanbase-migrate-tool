@@ -130,7 +130,7 @@ public class ClickHouseType {
                 return String.format(
                         SINGLE_PRECISION_FORMAT,
                         OceanBaseMySQLType.VARCHAR,
-                        OceanBaseMySQLType.RE_VARCHAR_SIZE);
+                        24);
 
             case IPv4:
                 return String.format(

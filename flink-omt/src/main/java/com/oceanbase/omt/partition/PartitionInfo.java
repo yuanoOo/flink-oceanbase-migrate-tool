@@ -140,6 +140,10 @@ public class PartitionInfo implements Serializable {
                 + ", list='"
                 + list
                 + '\''
+                + '\''
+                + ", partitionKeyType='"
+                + partitionKeyType
+                + '\''
                 + '}';
     }
 }

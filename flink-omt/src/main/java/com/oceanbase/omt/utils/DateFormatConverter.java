@@ -15,7 +15,7 @@ public class DateFormatConverter {
 
     // "2025" -> "2025/01/01"
     public static String convertYearToYYYYMMDD(String yearStr,String type) {
-        if (type.equals(ClickHouseType.Date)){
+        if (type.equals(ClickHouseType.Date) || type.equals(ClickHouseType.Date32)){
             int year = Integer.parseInt(yearStr);
             LocalDate date = Year.of(year).plusYears(1).atDay(1);
             return date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
@@ -29,7 +29,7 @@ public class DateFormatConverter {
 
     // "202506" -> "2025/06/01"
     public static String convertYearMonthToStandard(String yearMonthStr,String type) {
-        if (type.equals(ClickHouseType.Date)){
+        if (type.equals(ClickHouseType.Date) || type.equals(ClickHouseType.Date32)){
             int year = Integer.parseInt(yearMonthStr.substring(0, 4));
             int month = Integer.parseInt(yearMonthStr.substring(4, 6));
             LocalDate date = Year.of(year).atMonth(month).plusMonths(1).atDay(1);
@@ -43,14 +43,13 @@ public class DateFormatConverter {
 
     }
 
-    // "20250101" -> "2025/01/01"
     public static String convertDateToStandardFormat(String dateStr,String type) {
-        if (type.equals(ClickHouseType.Date)){
+        if (type.equals(ClickHouseType.Date)|| type.equals(ClickHouseType.Date32)){
             LocalDate date = LocalDate.parse(dateStr, DateTimeFormatter.BASIC_ISO_DATE).plusDays(1);
-            return date.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+            return date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         }else {
             LocalDateTime date = LocalDateTime.parse(dateStr, DateTimeFormatter.BASIC_ISO_DATE).plusDays(1);
-            return date.format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss"));
+            return date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         }
 
     }

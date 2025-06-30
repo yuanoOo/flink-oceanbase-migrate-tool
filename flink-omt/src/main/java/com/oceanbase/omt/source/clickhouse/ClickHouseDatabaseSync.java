@@ -17,7 +17,6 @@ import java.util.stream.Collectors;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.clickhouse.internal.options.ClickHouseReadOptions;
-import org.apache.flink.shaded.clickhouse.ru.yandex.clickhouse.response.ClickHouseColumnInfo;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
@@ -110,6 +109,7 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
                         if (isPartitionKey){
                             tableKeys.add(name);
                             partitionTypes.add(type);
+                            primaryKeys.add(name);
                         }
                         if (isPrimaryKey){
                             primaryKeys.add(name.trim());
