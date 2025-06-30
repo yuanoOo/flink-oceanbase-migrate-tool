@@ -1,7 +1,5 @@
 package com.oceanbase.omt.partition;
 
-import com.oceanbase.omt.source.clickhouse.ClickHouseType;
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -9,21 +7,20 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+
 
 public class ClickHousePartitionTest {
 
     @Test
-    public void testListPartition(){
+    public void testRangePartitionComplex(){
         String expectedDDL =
             "PARTITION BY RANGE COLUMNS (order_date,region)(PARTITION p_0 VALUES LESS THAN ('2025-07-01','East'),PARTITION p_1 VALUES LESS THAN ('2025-07-01','West'))";
-        List<PartitionInfo> partitionInfos = buildListPartition();
+        List<PartitionInfo> partitionInfos = buildRangePartitionComplex();
         String ddl = ClickHousePartitionUtils.buildOBPartitionWithDDL("", partitionInfos);
         Assert.assertEquals(expectedDDL,ddl);
     }
 
-    public List<PartitionInfo> buildListPartition(){
+    public List<PartitionInfo> buildRangePartitionComplex(){
         List<PartitionInfo> partitionInfos = new ArrayList<>();
         List<String> partitionList = new ArrayList<>();
         partitionList.add("String");
@@ -92,7 +89,7 @@ public class ClickHousePartitionTest {
     @Test
     public void testRangeSingle(){
         String expectedDDL =
-            "PARTITION BY RANGE COLUMNS (order_date)(PARTITION p_202507 VALUES LESS THAN (\"2025-08-01\"),PARTITION p_202506 VALUES LESS THAN (\"2025-07-01\"))                     ";
+            "PARTITION BY RANGE COLUMNS (order_date)(PARTITION p_202507 VALUES LESS THAN (\"2025-08-01\"),PARTITION p_202506 VALUES LESS THAN (\"2025-07-01\"))";
         List<PartitionInfo> partitionInfos = buildRangePartition();
         String ddl = ClickHousePartitionUtils.buildOBPartitionWithDDL("", partitionInfos);
         Assert.assertEquals(expectedDDL,ddl);
@@ -101,7 +98,7 @@ public class ClickHousePartitionTest {
     @Test
     public void testHash(){
         String expectedDDL =
-            "PARTITION BY HASH(region)PARTITIONS 2";
+            "PARTITION BY HASH(region) PARTITIONS 2";
         List<PartitionInfo> partitionInfos = buildHashPartition();
         String ddl = ClickHousePartitionUtils.buildOBPartitionWithDDL("", partitionInfos);
         Assert.assertEquals(expectedDDL,ddl);
@@ -158,24 +155,26 @@ public class ClickHousePartitionTest {
         partitionList.add("('West',202504)");
         partitionList.add("('East',202506)");
         partitionList.add("('South',202506)");
-        List<String> partitionList1 = ClickHousePartitionUtils.sortPartition(partitionList);
+        List<String> partitionList1 = ClickHousePartitionUtils.sortPartitionNames(partitionList);
         Assert.assertEquals(expectedDDL,partitionList1.toString());
     }
 
     @Test
-    public void testListSourt(){
+    public void testListSort(){
         List<String> typeList = new ArrayList<>(Arrays.asList(
             "String", "Date", "Int32", "DateTime", "Int64"
         ));
         List<String> valueList = new ArrayList<>(Arrays.asList(
             "a", "b", "c", "d", "e"
         ));
-        List<List<String>> lists = ClickHousePartitionUtils.partitionNameSort(typeList, valueList);
-        for (List<String> list : lists) {
-            System.out.println(list);
-        }
+
+        List<List<String>> lists = ClickHousePartitionUtils.sortPartitionKeys(typeList, valueList);
+        Assert.assertEquals(Arrays.asList(
+            "Date", "DateTime", "String", "Int32", "Int64"
+        ), lists.get(0));
+        Assert.assertEquals(Arrays.asList(
+            "b", "d", "a", "c", "e"
+        ), lists.get(1));
+
     }
-
-
-
 }

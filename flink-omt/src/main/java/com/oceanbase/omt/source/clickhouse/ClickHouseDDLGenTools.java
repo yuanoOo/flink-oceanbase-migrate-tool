@@ -1,7 +1,7 @@
 package com.oceanbase.omt.source.clickhouse;
 
 import java.util.List;
-import java.util.regex.Pattern;
+
 import java.util.stream.Collectors;
 
 import com.oceanbase.omt.partition.ClickHousePartitionUtils;
@@ -14,9 +14,9 @@ import org.slf4j.LoggerFactory;
 import com.oceanbase.omt.catalog.OceanBaseColumn;
 import com.oceanbase.omt.catalog.OceanBaseTable;
 import com.oceanbase.omt.partition.PartitionInfo;
-import com.oceanbase.omt.partition.PartitionUtils;
+
 import com.oceanbase.omt.source.starrocks.StarRocksDDLGenTools;
-import com.oceanbase.omt.source.starrocks.StarRocksType;
+
 
 public class ClickHouseDDLGenTools {
     private static final Logger LOG = LoggerFactory.getLogger(StarRocksDDLGenTools.class);
