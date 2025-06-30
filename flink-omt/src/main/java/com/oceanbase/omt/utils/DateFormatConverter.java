@@ -13,7 +13,6 @@ public class DateFormatConverter {
     private static final int YEAR_MONTH_LENGTH = 6;
     private static final int DATE_LENGTH = 8;
 
-    // "2025" -> "2025/01/01"
     public static String convertYearToYYYYMMDD(String yearStr,String type) {
         if (type.equals(ClickHouseType.Date) || type.equals(ClickHouseType.Date32)){
             int year = Integer.parseInt(yearStr);
@@ -27,7 +26,6 @@ public class DateFormatConverter {
 
     }
 
-    // "202506" -> "2025/06/01"
     public static String convertYearMonthToStandard(String yearMonthStr,String type) {
         if (type.equals(ClickHouseType.Date) || type.equals(ClickHouseType.Date32)){
             int year = Integer.parseInt(yearMonthStr.substring(0, 4));
@@ -66,7 +64,5 @@ public class DateFormatConverter {
                 throw new IllegalArgumentException("Invalid partition key format");
         }
     }
-
-
 
 }

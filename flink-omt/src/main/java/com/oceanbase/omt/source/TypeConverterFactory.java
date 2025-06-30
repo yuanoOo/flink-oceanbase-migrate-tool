@@ -12,7 +12,6 @@ public class TypeConverterFactory {
     static {
         converters.put(DataSourceType.STAR_ROCKS, new StarRocksTypeConverter());
         converters.put(DataSourceType.CLICK_HOUSE, new ClickHouseTypeConverter());
-        // 添加更多数据源支持
     }
 
     public static TypeConverter getConverter(DataSourceType type) {

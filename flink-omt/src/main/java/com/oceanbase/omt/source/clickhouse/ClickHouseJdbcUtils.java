@@ -12,24 +12,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.oceanbase.omt.partition.PartitionInfo;
-import com.oceanbase.omt.utils.DataSourceUtils;
+
 
 /**
  * @author yixing
  */
 public class ClickHouseJdbcUtils {
     private static final Logger LOG = LoggerFactory.getLogger(ClickHouseJdbcUtils.class);
-
-    public static Connection getConnection(String url,String username,String password){
-        try {
-            return DataSourceUtils.getSourceDataSource(url,username,password).getConnection();
-        } catch (SQLException e) {
-            LOG.error("Failed to get connection", e);
-            throw new RuntimeException("Failed to get connection", e);
-        }
-    }
-
-
 
     public static List<Tuple2<String, String>> executeDoubleColumnStatement(
             Connection connection, String sql, String... params) {

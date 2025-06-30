@@ -24,7 +24,6 @@ import com.oceanbase.omt.catalog.TableIdentifier;
 import com.oceanbase.omt.sink.OceanBaseRowDataSerializationSchema;
 import com.oceanbase.omt.source.DataSourceType;
 import com.oceanbase.omt.source.TypeConverterFactory;
-import com.oceanbase.omt.source.starrocks.StarRocksType;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.table.data.RowData;

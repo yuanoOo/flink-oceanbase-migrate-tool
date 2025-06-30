@@ -4,17 +4,16 @@ import static org.apache.flink.table.types.logical.DecimalType.MAX_PRECISION;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.flink.shaded.clickhouse.ru.yandex.clickhouse.domain.ClickHouseDataType;
-import org.apache.flink.shaded.clickhouse.ru.yandex.clickhouse.response.ClickHouseColumnInfo;
+
 import org.apache.flink.table.api.DataTypes;
 
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.util.Preconditions;
+
 
 import com.oceanbase.omt.catalog.OceanBaseColumn;
 import com.oceanbase.omt.catalog.OceanBaseMySQLType;
