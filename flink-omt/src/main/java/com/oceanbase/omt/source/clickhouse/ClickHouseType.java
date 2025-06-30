@@ -112,7 +112,7 @@ public class ClickHouseType {
                         DOUBLE_PRECISION_FORMAT,
                         OceanBaseMySQLType.DECIMAL,
                         MAX_PRECISION,
-                        0);
+                        1068);
             case Float32:
                 return OceanBaseMySQLType.FLOAT;
             case Float64:
