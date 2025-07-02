@@ -43,7 +43,8 @@ public class DataChangeMapFunction extends RichMapFunction<RowData, DataChangeRe
 
     public DataChangeMapFunction(
             OceanBaseTable oceanBaseTable,
-            Map<TableIdentifier, TableIdentifier> tableIdRouteMapping,String type) {
+            Map<TableIdentifier, TableIdentifier> tableIdRouteMapping,
+            String type) {
         this.oceanBaseTable = oceanBaseTable;
         this.tableIdRouteMapping = tableIdRouteMapping;
         this.type = type;
@@ -80,7 +81,11 @@ public class DataChangeMapFunction extends RichMapFunction<RowData, DataChangeRe
                         table.getTable());
         List<LogicalType> logicalTypes =
                 table.getFields().stream()
-                        .map(field-> TypeConverterFactory.getConverter(DataSourceType.FROM_VALUE.apply(type)).convert(field))
+                        .map(
+                                field ->
+                                        TypeConverterFactory.getConverter(
+                                                        DataSourceType.FROM_VALUE.apply(type))
+                                                .convert(field))
                         .collect(Collectors.toList());
         TableInfo tableInfo =
                 new TableInfo(

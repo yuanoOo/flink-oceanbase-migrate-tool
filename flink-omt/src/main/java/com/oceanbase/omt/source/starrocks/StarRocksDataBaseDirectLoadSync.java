@@ -59,14 +59,18 @@ public class StarRocksDataBaseDirectLoadSync extends StarRocksDatabaseSync {
             if (i == 0) {
                 source =
                         env.addSource(buildSourceFunction(oceanBaseTable))
-                                .map(new DataChangeMapFunction(oceanBaseTable, tableIdRouteMapping,type))
+                                .map(
+                                        new DataChangeMapFunction(
+                                                oceanBaseTable, tableIdRouteMapping, type))
                                 .name(buildSourceDescription(oceanBaseTable));
                 recordDataStream = source;
                 continue;
             }
             SingleOutputStreamOperator<DataChangeRecord> otherSource =
                     env.addSource(buildSourceFunction(oceanBaseTable))
-                            .map(new DataChangeMapFunction(oceanBaseTable, tableIdRouteMapping,type))
+                            .map(
+                                    new DataChangeMapFunction(
+                                            oceanBaseTable, tableIdRouteMapping, type))
                             .name(buildSourceDescription(oceanBaseTable));
             if (Objects.isNull(recordDataStream)) {
                 recordDataStream = source.union(otherSource);

@@ -1,4 +1,27 @@
+/*
+ * Copyright 2024 OceanBase.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.oceanbase.omt.source.clickhouse;
+
+import com.oceanbase.omt.partition.PartitionInfo;
+
+import org.apache.flink.api.java.tuple.Tuple2;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -7,16 +30,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.oceanbase.omt.partition.PartitionInfo;
-
-
-/**
- * @author yixing
- */
+/** @author yixing */
 public class ClickHouseJdbcUtils {
     private static final Logger LOG = LoggerFactory.getLogger(ClickHouseJdbcUtils.class);
 
@@ -44,28 +58,26 @@ public class ClickHouseJdbcUtils {
         }
     }
 
-    public static List<PartitionInfo> obtainPartitionInfo(Connection connection, String databaseName, String tableName){
-        String sql = "SELECT *\n"
-                     + "FROM system.parts\n"
-                     + "WHERE database = ? AND table = ?";
+    public static List<PartitionInfo> obtainPartitionInfo(
+            Connection connection, String databaseName, String tableName) {
+        String sql = "SELECT *\n" + "FROM system.parts\n" + "WHERE database = ? AND table = ?";
         List<PartitionInfo> partitionInfos = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setObject(1, databaseName);
             statement.setObject(2, tableName);
             ResultSet resultSet = statement.executeQuery();
-            while (resultSet.next()){
+            while (resultSet.next()) {
                 String partitionName = resultSet.getString("partition");
-                if (!partitionName.equals("tuple()")){
+                if (!partitionName.equals("tuple()")) {
                     PartitionInfo partitionInfo = new PartitionInfo();
                     partitionInfo.withPartitionName(partitionName);
                     partitionInfos.add(partitionInfo);
                 }
             }
-        }catch (SQLException e){
+        } catch (SQLException e) {
             LOG.error("Failed to execute sql: {}", sql, e);
             throw new RuntimeException(String.format("Failed to execute sql: %s", sql), e);
         }
         return partitionInfos;
     }
-
 }

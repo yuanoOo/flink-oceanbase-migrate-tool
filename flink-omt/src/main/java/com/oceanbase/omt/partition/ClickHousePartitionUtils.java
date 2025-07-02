@@ -1,14 +1,19 @@
+/*
+ * Copyright 2024 OceanBase.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.oceanbase.omt.partition;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import com.oceanbase.omt.source.clickhouse.ClickHouseType;
 import com.oceanbase.omt.utils.DateFormatConverter;
@@ -17,9 +22,16 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * @author yixing
- */
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+/** @author yixing */
 public class ClickHousePartitionUtils {
     private static final Logger LOG = LoggerFactory.getLogger(ClickHousePartitionUtils.class);
 
@@ -27,7 +39,7 @@ public class ClickHousePartitionUtils {
     private static final String PARTITION_LIST = "PARTITION BY LIST COLUMNS (%s)(%s)";
     private static final String STEP_PARTITION_LIST = "PARTITION %s VALUES IN (%s)";
 
-    private static final String PARTITION_RANGE= "PARTITION BY RANGE COLUMNS (%s)(%s)";
+    private static final String PARTITION_RANGE = "PARTITION BY RANGE COLUMNS (%s)(%s)";
     private static final String STEP_PARTITION_RANGE = "PARTITION %s VALUES LESS THAN (%s)";
 
     private static final String HASH_PARTITION_FORMAT = "PARTITION BY HASH(%s) PARTITIONS %s";
@@ -44,7 +56,8 @@ public class ClickHousePartitionUtils {
 
         // Handle multi-column partitioning situation
         if (partitionKeyType.size() > 1) {
-            return appendPartitionDDL(ddl, handleRangePartition(partitions, partitionKey, partitionKeyType));
+            return appendPartitionDDL(
+                    ddl, handleRangePartition(partitions, partitionKey, partitionKeyType));
         }
 
         // processing date type partition
@@ -53,29 +66,41 @@ public class ClickHousePartitionUtils {
         }
 
         // handle hash partitions
-        if (StringUtils.isNotBlank(partitionKeyExpression) && partitionKeyExpression.contains("Hash")) {
+        if (StringUtils.isNotBlank(partitionKeyExpression)
+                && partitionKeyExpression.contains("Hash")) {
             return appendPartitionDDL(ddl, handleHashPartition(partitions, partitionKey));
         }
         // Handle single column list partitioning
-        return appendPartitionDDL(ddl, handleListPartitionSingle(partitions, partitionKey, partitionKeyType));
-
+        return appendPartitionDDL(
+                ddl, handleListPartitionSingle(partitions, partitionKey, partitionKeyType));
     }
+
     private static String appendPartitionDDL(String ddl, String partitionDDL) {
         return ddl + partitionDDL;
     }
-    public static String handleListPartitionSingle(List<PartitionInfo> partitions, String partitionKey, List<String> partitionKeyType) {
-        String listFormat = partitions.stream()
-            .map(partition -> String.format(STEP_PARTITION_LIST,
-                "p_" + partitions.indexOf(partition),
-                "'" + partition.getPartitionName() + "'"))
-            .collect(Collectors.joining(","));
+
+    public static String handleListPartitionSingle(
+            List<PartitionInfo> partitions, String partitionKey, List<String> partitionKeyType) {
+        String listFormat =
+                partitions.stream()
+                        .map(
+                                partition ->
+                                        String.format(
+                                                STEP_PARTITION_LIST,
+                                                "p_" + partitions.indexOf(partition),
+                                                "'" + partition.getPartitionName() + "'"))
+                        .collect(Collectors.joining(","));
 
         return String.format(PARTITION_LIST, partitionKey, listFormat);
     }
 
-    private static String handleRangePartition(List<PartitionInfo> partitions,String partitionKey,List<String> partitionKeyType){
+    private static String handleRangePartition(
+            List<PartitionInfo> partitions, String partitionKey, List<String> partitionKeyType) {
         StringBuilder listFormat = new StringBuilder();
-        List<String> partitionNameList = partitions.stream().map(PartitionInfo::getPartitionName).collect(Collectors.toList());
+        List<String> partitionNameList =
+                partitions.stream()
+                        .map(PartitionInfo::getPartitionName)
+                        .collect(Collectors.toList());
 
         List<String> partitionNameListNew = new ArrayList<>();
 
@@ -89,7 +114,7 @@ public class ClickHousePartitionUtils {
 
         for (int i = 0; i < partitionKeyTypeSort.size(); i++) {
             String s = partitionKeyTypeSort.get(i);
-            if (ClickHouseType.DateTypes.contains(s)){
+            if (ClickHouseType.DateTypes.contains(s)) {
                 for (String string : partitionNameListSort) {
                     StringBuilder stringBuilder = new StringBuilder();
                     String substring = string.substring(1, string.length() - 1);
@@ -114,17 +139,17 @@ public class ClickHousePartitionUtils {
         for (int i = 0; i < partitionNameListNew.size(); i++) {
             String partitionName = partitionNameListNew.get(i);
             String obPartitionName = "p_" + i;
-            if (i == partitionNameListNew.size() - 1){
-                listFormat.append(String.format(STEP_PARTITION_RANGE, obPartitionName, partitionName));
-            }else {
-                listFormat.append(String.format(STEP_PARTITION_RANGE, obPartitionName, partitionName)).append(",");
+            if (i == partitionNameListNew.size() - 1) {
+                listFormat.append(
+                        String.format(STEP_PARTITION_RANGE, obPartitionName, partitionName));
+            } else {
+                listFormat
+                        .append(String.format(STEP_PARTITION_RANGE, obPartitionName, partitionName))
+                        .append(",");
             }
-
         }
-        return String.format(PARTITION_RANGE,partitionKeyNew, listFormat);
-
+        return String.format(PARTITION_RANGE, partitionKeyNew, listFormat);
     }
-
 
     private static String handleHashPartition(List<PartitionInfo> partitions, String partitionKey) {
         if (partitions == null || partitionKey == null) {
@@ -133,67 +158,82 @@ public class ClickHousePartitionUtils {
         return String.format(HASH_PARTITION_FORMAT, partitionKey, partitions.size());
     }
 
-    private static String handleTimePartition(List<PartitionInfo> partitions, String partitionColumn,String dateFormatType){
+    private static String handleTimePartition(
+            List<PartitionInfo> partitions, String partitionColumn, String dateFormatType) {
         StringBuilder partitionBuilder = new StringBuilder();
         for (PartitionInfo partitionInfo : partitions) {
             String partitionName = partitionInfo.getPartitionName();
             String obPartitionName = "p_" + partitionName;
             try {
-                String convertedKey = "\"" + DateFormatConverter.convertPartitionKey(partitionName, dateFormatType) + "\"";
+                String convertedKey =
+                        "\""
+                                + DateFormatConverter.convertPartitionKey(
+                                        partitionName, dateFormatType)
+                                + "\"";
                 if (partitionBuilder.length() > 0) {
                     partitionBuilder.append(",");
                 }
-                partitionBuilder.append(String.format(STEP_PARTITION_RANGE, obPartitionName, convertedKey));
+                partitionBuilder.append(
+                        String.format(STEP_PARTITION_RANGE, obPartitionName, convertedKey));
             } catch (IllegalArgumentException e) {
                 LOG.error("Invalid partition key format for partition: {}", partitionName, e);
-                throw new IllegalArgumentException("Invalid partition key format: " + partitionName, e);
+                throw new IllegalArgumentException(
+                        "Invalid partition key format: " + partitionName, e);
             } catch (Exception e) {
-                LOG.error("Unexpected error while converting partition key for partition: {}", partitionName, e);
+                LOG.error(
+                        "Unexpected error while converting partition key for partition: {}",
+                        partitionName,
+                        e);
                 throw new RuntimeException("Failed to convert partition key", e);
             }
         }
         return String.format(PARTITION_RANGE, partitionColumn, partitionBuilder);
     }
 
-    public static List<String> sortPartitionNames(List<String> partitionList){
-        partitionList.sort((s1, s2) -> {
-            Matcher m1 = PARTITION_PATTERN.matcher(s1);
-            Matcher m2 = PARTITION_PATTERN.matcher(s2);
-            if (!m1.find() || !m2.find()) {
-                return 0;
-            }
-            try {
-                int num1 = Integer.parseInt(m1.group(2));
-                int num2 = Integer.parseInt(m2.group(2));
+    public static List<String> sortPartitionNames(List<String> partitionList) {
+        partitionList.sort(
+                (s1, s2) -> {
+                    Matcher m1 = PARTITION_PATTERN.matcher(s1);
+                    Matcher m2 = PARTITION_PATTERN.matcher(s2);
+                    if (!m1.find() || !m2.find()) {
+                        return 0;
+                    }
+                    try {
+                        int num1 = Integer.parseInt(m1.group(2));
+                        int num2 = Integer.parseInt(m2.group(2));
 
-                // 先比较数字
-                int cmp = Integer.compare(num1, num2);
-                if (cmp != 0) {
-                    return cmp;
-                }
-                return m1.group(1).compareTo(m2.group(1));
-            } catch (NumberFormatException e) {
-                return 0;
-            }
-        });
+                        // 先比较数字
+                        int cmp = Integer.compare(num1, num2);
+                        if (cmp != 0) {
+                            return cmp;
+                        }
+                        return m1.group(1).compareTo(m2.group(1));
+                    } catch (NumberFormatException e) {
+                        return 0;
+                    }
+                });
         return partitionList;
     }
 
-    public static List<List<String>> sortPartitionKeys(List<String> typeList,List<String> partitionNameList){
+    public static List<List<String>> sortPartitionKeys(
+            List<String> typeList, List<String> partitionNameList) {
         // 使用流式处理将日期类型和非日期类型分开
-        Map<Boolean, List<String>> partitionedTypes = IntStream.range(0, typeList.size())
-            .boxed()
-            .collect(Collectors.partitioningBy(
-                i -> ClickHouseType.DateTypes.contains(typeList.get(i)),
-                Collectors.mapping(typeList::get, Collectors.toList())
-            ));
+        Map<Boolean, List<String>> partitionedTypes =
+                IntStream.range(0, typeList.size())
+                        .boxed()
+                        .collect(
+                                Collectors.partitioningBy(
+                                        i -> ClickHouseType.DateTypes.contains(typeList.get(i)),
+                                        Collectors.mapping(typeList::get, Collectors.toList())));
 
-        Map<Boolean, List<String>> partitionedValues = IntStream.range(0, typeList.size())
-            .boxed()
-            .collect(Collectors.partitioningBy(
-                i -> ClickHouseType.DateTypes.contains(typeList.get(i)),
-                Collectors.mapping(partitionNameList::get, Collectors.toList())
-            ));
+        Map<Boolean, List<String>> partitionedValues =
+                IntStream.range(0, typeList.size())
+                        .boxed()
+                        .collect(
+                                Collectors.partitioningBy(
+                                        i -> ClickHouseType.DateTypes.contains(typeList.get(i)),
+                                        Collectors.mapping(
+                                                partitionNameList::get, Collectors.toList())));
 
         List<String> sortedTypeList = new ArrayList<>();
         sortedTypeList.addAll(partitionedTypes.get(true));
@@ -205,20 +245,18 @@ public class ClickHousePartitionUtils {
         return Arrays.asList(sortedTypeList, sortedValueList);
     }
 
-    public static List<String> partitionNameSortType(List<String> typeList){
-        Map<Boolean, List<String>> partitionedTypes = IntStream.range(0, typeList.size())
-            .boxed()
-            .collect(Collectors.partitioningBy(
-                i -> ClickHouseType.DateTypes.contains(typeList.get(i)),
-                Collectors.mapping(typeList::get, Collectors.toList())
-            ));
+    public static List<String> partitionNameSortType(List<String> typeList) {
+        Map<Boolean, List<String>> partitionedTypes =
+                IntStream.range(0, typeList.size())
+                        .boxed()
+                        .collect(
+                                Collectors.partitioningBy(
+                                        i -> ClickHouseType.DateTypes.contains(typeList.get(i)),
+                                        Collectors.mapping(typeList::get, Collectors.toList())));
 
         List<String> sortedTypeList = new ArrayList<>();
         sortedTypeList.addAll(partitionedTypes.get(true));
         sortedTypeList.addAll(partitionedTypes.get(false));
         return sortedTypeList;
     }
-
-
-
 }

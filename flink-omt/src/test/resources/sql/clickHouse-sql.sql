@@ -1,3 +1,18 @@
+/*
+ * Copyright 2024 OceanBase.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 -- test1.orders1 definition
 CREATE TABLE test1.orders1
 (
@@ -61,27 +76,27 @@ ORDER BY order_date;
 
 INSERT INTO test1.orders1
 (order_id, order_date, customer_name, price, product_id, order_status)
-VALUES(1, '2025-06-01 10:00:00.000', 'Alice', 199.99, 101, 0);
+VALUES(1, '2025-06-01 10:00:00', 'Alice', 199.99, 101, 0);
 INSERT INTO test1.orders1
 (order_id, order_date, customer_name, price, product_id, order_status)
-VALUES(2, '2025-06-01 10:05:00.000', 'Bob', 299.99, 102, 0);
+VALUES(2, '2025-06-01 10:05:00', 'Bob', 299.99, 102, 0);
 
 
 INSERT INTO test1.orders2
 (order_id, customer_name, product_code, product_name, price, quantity, total_amount, order_time)
-VALUES(1001, 'Alice', 'P1001', 'Laptop', 9999.99, 2, 19999.98, '2025-01-15 10:00:00.000');
+VALUES(1001, 'Alice', 'P1001', 'Laptop', 9999.99, 2, 19999.98, '2025-01-15 10:00:00');
 INSERT INTO test1.orders2
 (order_id, customer_name, product_code, product_name, price, quantity, total_amount, order_time)
-VALUES(1002, 'Bob', 'P1002', 'Smartphone', 4999.99, 1, 4999.99, '2025-01-20 11:30:00.000');
+VALUES(1002, 'Bob', 'P1002', 'Smartphone', 4999.99, 1, 4999.99, '2025-01-20 11:30:00');
 INSERT INTO test1.orders2
 (order_id, customer_name, product_code, product_name, price, quantity, total_amount, order_time)
-VALUES(1003, 'Charlie', 'P1003', 'Tablet', 2999.99, 3, 8999.97, '2025-02-05 09:15:00.000');
+VALUES(1003, 'Charlie', 'P1003', 'Tablet', 2999.99, 3, 8999.97, '2025-02-05 09:15:00');
 INSERT INTO test1.orders2
 (order_id, customer_name, product_code, product_name, price, quantity, total_amount, order_time)
-VALUES(1004, 'David', 'P1004', 'Monitor', 1999.99, 2, 3999.98, '2025-02-10 14:45:00.000');
+VALUES(1004, 'David', 'P1004', 'Monitor', 1999.99, 2, 3999.98, '2025-02-10 14:45:00');
 INSERT INTO test1.orders2
 (order_id, customer_name, product_code, product_name, price, quantity, total_amount, order_time)
-VALUES(1005, 'Eva', 'P1005', 'Keyboard', 199.99, 5, 999.95, '2025-03-01 08:30:00.000');
+VALUES(1005, 'Eva', 'P1005', 'Keyboard', 199.99, 5, 999.95, '2025-03-01 08:30:00');
 
 
 INSERT INTO test1.orders3

@@ -15,8 +15,6 @@ source:
   jdbc-url : jdbc:clickhouse://114.215.194.83:8123
   username: root
   password: 123456
-  scan-url: 114.215.194.83:8123
-  scan.max-retries: 1
   parallelism: 4
   database: test
   tables: order
@@ -31,7 +29,7 @@ routes:
   - source-table: test1.orders1
     sink-table: test1.order1
     description: sync orders table to order
-  - source-table: test1.order1 # 将多张表同步至一张表，需要保证所有要同步的表结构一样
+  - source-table: test1.orders2
     sink-table: route.order
     description: sync orders table to route
 

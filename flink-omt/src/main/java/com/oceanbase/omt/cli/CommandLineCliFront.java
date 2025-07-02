@@ -95,9 +95,9 @@ public class CommandLineCliFront {
 
         System.out.println(
                 "The above table has been created in OceanBase."
-                + "Please check whether it meets your expectations. \n"
-                + "If it does, enter Y and press Enter to start data migration."
-                + "Otherwise, enter N and the tool will exit.(Y/N)\n");
+                        + "Please check whether it meets your expectations. \n"
+                        + "If it does, enter Y and press Enter to start data migration."
+                        + "Otherwise, enter N and the tool will exit.(Y/N)\n");
         Scanner scanner = new Scanner(System.in);
         String nextLine = scanner.nextLine();
         if ("Y".equalsIgnoreCase(nextLine)) {
