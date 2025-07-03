@@ -157,7 +157,10 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-        List<PartitionInfo> partitions = getPartitions(databaseName, tableName, columns);
+        List<PartitionInfo> partitions =
+                getPartitions(databaseName, tableName, columns).stream()
+                        .distinct()
+                        .collect(Collectors.toList());
         Map<String, String> keyMap = new HashMap<>();
         getKeys(databaseName, tableName, keyMap);
         for (PartitionInfo partition : partitions) {

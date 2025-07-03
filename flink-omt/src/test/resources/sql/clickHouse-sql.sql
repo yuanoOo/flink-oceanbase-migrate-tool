@@ -1,19 +1,16 @@
-/*
- * Copyright 2024 OceanBase.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
--- test1.orders1 definition
+-- Copyright 2024 OceanBase.
+--
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+--   http://www.apache.org/licenses/LICENSE-2.0
+-- Unless required by applicable law or agreed to in writing,
+-- software distributed under the License is distributed on an
+-- "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+-- KIND, either express or implied.  See the License for the
+-- specific language governing permissions and limitations
+-- under the License.
+
 CREATE TABLE test1.orders1
 (
     `order_id` Int32,
@@ -26,7 +23,7 @@ CREATE TABLE test1.orders1
 PRIMARY KEY order_id
 ORDER BY order_id;
 
--- test1.orders2 definition
+
 CREATE TABLE test1.orders2
 (
     `order_id` UInt64,
@@ -42,7 +39,7 @@ PARTITION BY toYYYYMM(order_time)
 ORDER BY (order_time,order_id);
 
 
--- test1.orders3 definition
+
 CREATE TABLE test1.orders3
 (
     `UserID` UInt64,
@@ -51,7 +48,7 @@ CREATE TABLE test1.orders3
 PARTITION BY sipHash64(UserID) % 16
 ORDER BY UserID;
 
--- test1.orders4 definition
+
 CREATE TABLE test1.orders4
 (
     `order_id` UInt64,
@@ -62,7 +59,6 @@ CREATE TABLE test1.orders4
 PARTITION BY (region,toYYYYMM(order_date))
 ORDER BY order_date;
 
--- test1.test definition
 CREATE TABLE test1.orders5
 (
     `order_id` UInt64,

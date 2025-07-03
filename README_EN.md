@@ -209,3 +209,4 @@ pipeline:
 | STRUCT                      |                | Not supported                                                                         |
 | BITMAP                      |                | Not supported                                                                         |
 | HLL                         |                | Not supported                                                                         |
+

@@ -60,7 +60,10 @@ public class ClickHouseJdbcUtils {
 
     public static List<PartitionInfo> obtainPartitionInfo(
             Connection connection, String databaseName, String tableName) {
-        String sql = "SELECT *\n" + "FROM system.parts\n" + "WHERE database = ? AND table = ?";
+        String sql =
+                "SELECT *\n"
+                        + "FROM system.parts\n"
+                        + "WHERE database = ? AND table = ? and active = 1";
         List<PartitionInfo> partitionInfos = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setObject(1, databaseName);
@@ -70,8 +73,12 @@ public class ClickHouseJdbcUtils {
                 String partitionName = resultSet.getString("partition");
                 if (!partitionName.equals("tuple()")) {
                     PartitionInfo partitionInfo = new PartitionInfo();
-                    partitionInfo.withPartitionName(partitionName);
-                    partitionInfos.add(partitionInfo);
+                    if (partitionInfos.stream()
+                            .map(PartitionInfo::getPartitionName)
+                            .noneMatch(p -> p.equals(partitionName))) {
+                        partitionInfo.withPartitionName(partitionName);
+                        partitionInfos.add(partitionInfo);
+                    }
                 }
             }
         } catch (SQLException e) {

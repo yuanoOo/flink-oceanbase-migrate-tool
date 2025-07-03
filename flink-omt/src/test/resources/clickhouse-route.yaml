@@ -25,6 +25,14 @@ oceanbase:
   password: 654321
   schema-name: test
 
+routes:
+  - source-table: test1.orders1
+    sink-table: test1.order1
+    description: sync orders table to order
+  - source-table: test1.orders2
+    sink-table: route.order
+    description: sync orders table to route
+
 pipeline:
   name: Test sync clickhouse to OB
   parallelism: 2
