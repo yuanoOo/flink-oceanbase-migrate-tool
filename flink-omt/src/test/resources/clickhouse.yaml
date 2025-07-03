@@ -12,7 +12,7 @@
 # limitations under the License.
 source:
   type: ClickHouse
-  jdbc-url : jdbc:clickhouse://114.215.194.83:8123
+  jdbc-url : jdbc:clickhouse://localhost:8123
   username: root
   password: 123456
   parallelism: 4
@@ -20,7 +20,7 @@ source:
   tables: order
 
 oceanbase:
-  url: jdbc:mysql://121.43.131.209:2810
+  url: jdbc:mysql://localhost:2810
   username: root@sun
   password: test1111
   schema-name: test1

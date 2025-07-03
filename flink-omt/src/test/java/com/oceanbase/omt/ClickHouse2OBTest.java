@@ -60,14 +60,13 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
     private static final String CLICKHOUSE_DOCKER_IMAGE_NAME =
             "clickhouse/clickhouse-server:latest";
 
-    // exposed ports
-    public static final int FE_HTTP_SERVICE_PORT = 8080;
     public static final int DEFAULT_STARTUP_TIMEOUT_SECONDS = 240;
 
     public static final GenericContainer<?> CLICKHOUSE_CONTAINER =
             new FixedHostPortGenericContainer<>(CLICKHOUSE_DOCKER_IMAGE_NAME)
                     .withNetwork(NETWORK)
                     .withFixedExposedPort(8123, 8123)
+                    .withFixedExposedPort(9000, 9000)
                     .withEnv("CLICKHOUSE_PASSWORD", "123456")
                     .withEnv("CLICKHOUSE_USER", "root")
                     .withLogConsumer(new Slf4jLogConsumer(LOG));
@@ -88,23 +87,23 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
         long startWaitingTimestamp = System.currentTimeMillis();
 
         new LogMessageWaitStrategy()
-                .withRegEx(".*Ready for connections.*")
+                .withRegEx("Logging trace to")
                 .withTimes(1)
                 .withStartupTimeout(
                         Duration.of(DEFAULT_STARTUP_TIMEOUT_SECONDS, ChronoUnit.SECONDS))
                 .waitUntilReady(CLICKHOUSE_CONTAINER);
 
-        while (!checkBackendAvailability()) {
-            try {
-                if (System.currentTimeMillis() - startWaitingTimestamp
-                        > DEFAULT_STARTUP_TIMEOUT_SECONDS * 1000) {
-                    throw new RuntimeException("ClickHouse backend startup timed out.");
-                }
-                LOG.info("Waiting for backends to be available");
-                Thread.sleep(1000);
-            } catch (InterruptedException ignored) {
-            }
-        }
+//        while (!checkBackendAvailability()) {
+//            try {
+//                if (System.currentTimeMillis() - startWaitingTimestamp
+//                        > DEFAULT_STARTUP_TIMEOUT_SECONDS * 1000) {
+//                    throw new RuntimeException("ClickHouse backend startup timed out.");
+//                }
+//                LOG.info("Waiting for backends to be available");
+//                Thread.sleep(1000);
+//            } catch (InterruptedException ignored) {
+//            }
+//        }
         LOG.info("Containers are started.");
     }
 
