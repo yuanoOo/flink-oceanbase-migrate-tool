@@ -17,6 +17,7 @@ package com.oceanbase.omt.source;
 
 import com.oceanbase.omt.source.clickhouse.ClickHouseTypeConverter;
 import com.oceanbase.omt.source.starrocks.StarRocksTypeConverter;
+import org.apache.commons.lang.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,6 +31,9 @@ public class TypeConverterFactory {
     }
 
     public static TypeConverter getConverter(DataSourceType type) {
+        if (StringUtils.isNotBlank(type.getValue())) {
+            throw new IllegalArgumentException("DataSourceType cannot be null");
+        }
         return converters.get(type);
     }
 }
