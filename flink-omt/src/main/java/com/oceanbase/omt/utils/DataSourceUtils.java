@@ -66,20 +66,4 @@ public class DataSourceUtils {
         }
         return sourceSource;
     }
-
-    public static DataSource getSourceDataSource(String url, String username, String password) {
-        if (sourceSource == null) {
-            synchronized (DataSourceUtils.class) {
-                if (sourceSource == null) {
-                    HikariConfig config = new HikariConfig();
-                    config.setJdbcUrl(url);
-                    config.setUsername(username);
-                    config.setPassword(password);
-                    config.setMaximumPoolSize(10);
-                    sourceSource = new HikariDataSource(config);
-                }
-            }
-        }
-        return sourceSource;
-    }
 }

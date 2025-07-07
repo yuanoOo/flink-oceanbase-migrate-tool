@@ -54,7 +54,7 @@ public class CommandLineCliFront {
                 createStarRocksSyncDatabase(migrationConfig);
                 break;
 
-            case DatabaseSyncConfig.ClICKHOUSE_TYPE:
+            case DatabaseSyncConfig.CLICKHOUSE_TYPE:
                 createClickHouseSyncDatabase(migrationConfig);
                 break;
             default:

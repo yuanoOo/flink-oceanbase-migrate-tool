@@ -201,8 +201,6 @@ public class ClickHousePartitionUtils {
                     try {
                         int num1 = Integer.parseInt(m1.group(2));
                         int num2 = Integer.parseInt(m2.group(2));
-
-                        // 先比较数字
                         int cmp = Integer.compare(num1, num2);
                         if (cmp != 0) {
                             return cmp;
@@ -217,7 +215,6 @@ public class ClickHousePartitionUtils {
 
     public static List<List<String>> sortPartitionKeys(
             List<String> typeList, List<String> partitionNameList) {
-        // 使用流式处理将日期类型和非日期类型分开
         Map<Boolean, List<String>> partitionedTypes =
                 IntStream.range(0, typeList.size())
                         .boxed()
