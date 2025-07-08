@@ -32,6 +32,7 @@ public class OceanBaseColumn implements Serializable {
     private Boolean nullable;
     private String columnType;
     private String dataType;
+    private String enumDefaultValue;
 
     public String getName() {
         return name;
@@ -65,6 +66,10 @@ public class OceanBaseColumn implements Serializable {
         return numericScale;
     }
 
+    public String getEnumDefaultValue() {
+        return enumDefaultValue;
+    }
+
     public String getComment() {
         return comment;
     }
@@ -79,8 +84,12 @@ public class OceanBaseColumn implements Serializable {
 
     @Override
     public boolean equals(Object object) {
-        if (this == object) return true;
-        if (!(object instanceof OceanBaseColumn)) return false;
+        if (this == object) {
+            return true;
+        }
+        if (!(object instanceof OceanBaseColumn)) {
+            return false;
+        }
         OceanBaseColumn that = (OceanBaseColumn) object;
         return ordinalPosition == that.ordinalPosition
                 && Objects.equals(name, that.name)
@@ -88,6 +97,7 @@ public class OceanBaseColumn implements Serializable {
                 && Objects.equals(defaultValue, that.defaultValue)
                 && Objects.equals(columnSize, that.columnSize)
                 && Objects.equals(numericScale, that.numericScale)
+                && Objects.equals(enumDefaultValue, that.enumDefaultValue)
                 && Objects.equals(comment, that.comment)
                 && Objects.equals(nullable, that.nullable)
                 && Objects.equals(dataType, that.dataType);
@@ -104,7 +114,8 @@ public class OceanBaseColumn implements Serializable {
                 numericScale,
                 comment,
                 nullable,
-                dataType);
+                dataType,
+                enumDefaultValue);
     }
 
     @Override
@@ -133,6 +144,8 @@ public class OceanBaseColumn implements Serializable {
                 + nullable
                 + ", columnType="
                 + columnType
+                + ", enumDefaultValue="
+                + enumDefaultValue
                 + ", dataType="
                 + dataType
                 + '}';
@@ -149,6 +162,7 @@ public class OceanBaseColumn implements Serializable {
         private Boolean nullable;
         private String columnType;
         private String dataType;
+        private String enumDefaultValue;
 
         private FieldSchemaBuilder() {}
 
@@ -206,6 +220,11 @@ public class OceanBaseColumn implements Serializable {
             return this;
         }
 
+        public FieldSchemaBuilder withEnumDefaultValue(String enumDefaultValue) {
+            this.enumDefaultValue= enumDefaultValue;
+            return this;
+        }
+
         public OceanBaseColumn build() {
             OceanBaseColumn fieldSchema = new OceanBaseColumn();
             fieldSchema.typeString = this.typeString;
@@ -218,6 +237,7 @@ public class OceanBaseColumn implements Serializable {
             fieldSchema.comment = this.comment;
             fieldSchema.columnType = this.columnType;
             fieldSchema.dataType = this.dataType;
+            fieldSchema.enumDefaultValue = this.enumDefaultValue;
             return fieldSchema;
         }
     }

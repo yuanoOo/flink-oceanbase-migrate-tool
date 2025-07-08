@@ -48,8 +48,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
+
 import java.util.Arrays;
 import java.util.List;
+
 import java.util.stream.Stream;
 
 public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
@@ -88,9 +90,6 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
             String username = clickhouse.getUsername();
             String password = clickhouse.getPassword();
             String jdbcUrl = "jdbc:clickhouse://localhost:8123/default?user=root&password=123456";
-            System.out.println("JDBC URL: " + jdbcUrl);
-            System.out.println("Username: " + username);
-            System.out.println("Password: " + password);
 
             try (Connection conn = DriverManager.getConnection(jdbcUrl, username, password);
                     Statement stmt = conn.createStatement();

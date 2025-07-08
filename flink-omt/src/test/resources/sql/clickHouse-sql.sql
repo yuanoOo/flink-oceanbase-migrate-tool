@@ -11,6 +11,36 @@
 -- specific language governing permissions and limitations
 -- under the License.
 
+CREATE TABLE test1.orders6 (
+                               id UInt64,
+                               uint8_value UInt8,
+                               uint16_value UInt16,
+                               uint32_value UInt32,
+                               uint64_value UInt64,
+                               int8_value Int8,
+                               int16_value Int16,
+                               int32_value Int32,
+                               int64_value Int64,
+                               float32_value Float32,
+                               float64_value Float64,
+                               string_value String,
+                               fixed_string_value FixedString(10),
+                               date_value Date,
+                               datetime_value DateTime,
+                               datetime64_value DateTime64(3),
+                               enum8_value Enum8('hello' = 1, 'world' = 2, 'clickhouse' = 3),
+                               enum16_value Enum16('test' = 100, 'demo' = 200),
+                               nullable_string Nullable(String),
+                               nullable_int Nullable(Int32),
+                               uuid_value UUID,
+                               ipv4_value IPv4,
+                               ipv6_value IPv6,
+                               json_value String,
+                               low_card_string LowCardinality(String),
+                               decimal_value Decimal(18, 6)
+)ENGINE = MergeTree()
+ORDER BY id;
+
 CREATE TABLE test1.orders1
 (
     `order_id` Int32,
@@ -303,4 +333,36 @@ VALUES(6, 'South', '2025-06-06', 180.00);
 INSERT INTO test1.orders5
 (order_id, region, order_date, amount)
 VALUES(3, 'East', '2025-06-03', 150.00);
+
+
+
+INSERT INTO test1.orders6 VALUES
+    (
+        12345678901234567,
+        255,
+        65535,
+        4294967295,
+        1844674407370955161,
+        -128,
+        -32768,
+        -2147483648,
+        -922337203685477580,
+        3.1415927,
+        2.718281828459045,
+        'fisss',
+        'eesf',
+        '2023-05-15',
+        '2023-05-15 14:30:00',
+        '2023-05-15 14:30:00.123',
+        'hello',
+        'test',
+        NULL,
+        42,
+        '123e4567-e89b-12d3-a456-426614174000',
+        '192.168.1.1',
+        '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
+        '{"name": "Alice", "age": 25, "active": true}',
+        'llklk',
+        123456.789012
+    );
 

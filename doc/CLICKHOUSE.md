@@ -60,8 +60,8 @@ pipeline:
 | Decimal                             | DECIMAL        |      |
 | Date                                | DATE           |      |
 | DateTime/DateTime32/DateTime64      | DATETIME       |      |
-| ARRAY                               | VARCHAR(65535) |      |
-| MAP                                 | VARCHAR(65535) |      |
+| ARRAY                               |                | 暂不支持 |
+| MAP                                 |                | 暂不支持 |
 | Tuple                               |                | 暂不支持 |
 | Nested                              |                | 暂不支持 |
 | AggregateFuntion                    |                | 暂不支持 |

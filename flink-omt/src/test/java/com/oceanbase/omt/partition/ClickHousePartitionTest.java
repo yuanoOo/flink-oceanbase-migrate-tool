@@ -21,6 +21,9 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class ClickHousePartitionTest {
 
@@ -178,4 +181,29 @@ public class ClickHousePartitionTest {
                 Arrays.asList("Date", "DateTime", "String", "Int32", "Int64"), lists.get(0));
         Assert.assertEquals(Arrays.asList("b", "d", "a", "c", "e"), lists.get(1));
     }
+
+
+    @Test
+    public void testEnum(){
+        String s = enumFormat("Enum8('hello' = 1, 'world' = 2, 'clickhouse' = 3)");
+        System.out.println(s);
+    }
+
+    public static String enumFormat(String enumType) {
+        String s = extractInnerContent(enumType);
+        return Arrays.stream(s.split(","))
+            .map(str -> str.contains("=") ? str.split("=")[0] : str)
+            .collect(Collectors.joining(","));
+    }
+
+
+    public static String extractInnerContent(String input) {
+        Pattern pattern = Pattern.compile("\\((.*)\\)");
+        Matcher matcher = pattern.matcher(input);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return "";
+    }
+
 }

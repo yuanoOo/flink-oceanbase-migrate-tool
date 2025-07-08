@@ -52,12 +52,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /** @author yixing */
 public class ClickHouseDatabaseSync extends DatabaseSyncBase {
     private static final Logger LOG = LoggerFactory.getLogger(ClickHouseDatabaseSync.class);
     private List<OceanBaseTable> oceanBaseTables;
+
+    private final static Pattern PATTERN =  Pattern.compile("\\((.*)\\)");
 
     public ClickHouseDatabaseSync(MigrationConfig migrationConfig) {
         super(migrationConfig);
@@ -95,11 +99,7 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
 
     public OceanBaseTable getTable(String databaseName, String tableName)
             throws StarRocksCatalogException {
-        final String tableSchemaQuery =
-                "SELECT database,table,name,type,default_kind,default_expression,comment,is_in_partition_key,is_in_sorting_key,is_in_primary_key,is_in_sampling_key,numeric_precision,numeric_scale,comment,is_in_partition_key,is_in_sorting_key,is_in_primary_key,is_in_sampling_key,numeric_precision,numeric_scale\"\n"
-                        + "                                      + \" FROM system.columns\n"
-                        + "WHERE database = ? AND table = ?";
-
+        final String tableSchemaQuery = "SELECT * FROM system.columns WHERE database = ? AND table = ?";
         List<OceanBaseColumn> columns = new ArrayList<>();
         List<String> partitionTypes = new ArrayList<>();
         List<String> tableKeys = new ArrayList<>();
@@ -110,13 +110,36 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
                 statement.setObject(2, tableName);
                 try (ResultSet resultSet = statement.executeQuery()) {
                     while (resultSet.next()) {
+                        int numericPrecision =
+                            resultSet.getInt(ColumnInfo.NUMERIC_PRECISION.getName());
+                        int numericScale = resultSet.getInt(ColumnInfo.NUMERIC_SCALE.getName());
                         String name = resultSet.getString(ColumnInfo.NAME.getName());
                         String type = resultSet.getString(ColumnInfo.TYPE.getName());
+                        String enumDefaultValue="";
                         if (type.contains(ClickHouseType.Decimal)) {
                             type = ClickHouseType.Decimal;
                         }
                         if (type.contains(ClickHouseType.String)) {
+                            if (resultSet.getString(ColumnInfo.CHARACTER_OCTET_LENGTH.getName())!=null){
+                                numericPrecision=resultSet.getInt(ColumnInfo.CHARACTER_OCTET_LENGTH.getName());
+                            }
                             type = ClickHouseType.String;
+                        }
+                        if (type.contains(ClickHouseType.Nullable)){
+                            type=extractInnerContent(type);
+                        }
+                        if (type.contains(ClickHouseType.Enum8)) {
+                            enumDefaultValue = enumFormat(type);
+                            type = ClickHouseType.Enum8;
+                        }
+                        if (type.contains(ClickHouseType.Enum16)) {
+                            enumDefaultValue = enumFormat(type);
+                            System.out.println(enumDefaultValue);
+                            type = ClickHouseType.Enum16;
+                        }
+                        if (type.contains(ClickHouseType.DateTime64)) {
+                            type = ClickHouseType.DateTime64;
+                            numericPrecision = resultSet.getInt(ColumnInfo.DATETIME_PRECISION.getName());
                         }
                         boolean isPartitionKey =
                                 resultSet.getBoolean(ColumnInfo.IS_IN_PARTITION_KEY.getName());
@@ -136,10 +159,6 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
                             primaryKeys.add(name.trim());
                         }
                         String comment = resultSet.getString(ColumnInfo.COMMENT.getName());
-                        int numericPrecision =
-                                resultSet.getInt(ColumnInfo.NUMERIC_PRECISION.getName());
-                        int numericScale = resultSet.getInt(ColumnInfo.NUMERIC_SCALE.getName());
-
                         OceanBaseColumn column =
                                 OceanBaseColumn.FieldSchemaBuilder.aFieldSchema()
                                         .withName(name)
@@ -148,8 +167,8 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
                                         .withComment(comment)
                                         .withColumnSize(numericPrecision)
                                         .withNumericScale(numericScale)
+                                        .withEnumDefaultValue(enumDefaultValue)
                                         .build();
-
                         columns.add(column);
                     }
                 }
@@ -202,6 +221,20 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
             LOG.error("getKeys error", e);
             throw new RuntimeException(e);
         }
+    }
+
+    public static String enumFormat(String enumType) {
+        String s = extractInnerContent(enumType);
+        return Arrays.stream(s.split(","))
+            .map(str -> str.contains("=") ? str.split("=")[0] : str)
+            .collect(Collectors.joining(","));
+    }
+    public static String extractInnerContent(String input) {
+        Matcher matcher = PATTERN.matcher(input);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return "";
     }
 
     public List<PartitionInfo> getPartitions(

@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 source:
-  type: ClickHouse
+  type: clickhouse
   jdbc-url : jdbc:clickhouse://localhost:8123/default?user=root&password=123456
   username: root
   password: 123456

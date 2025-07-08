@@ -33,6 +33,8 @@ public enum ColumnInfo {
     IS_IN_PARTITION_KEY("is_in_partition_key"),
     IS_IN_PRIMARY_KEY("is_in_primary_key"),
     IS_IN_SORTING_KEY("is_in_sorting_key"),
-    IS_IN_SAMPLING_KEY("is_in_sampling_key");
+    IS_IN_SAMPLING_KEY("is_in_sampling_key"),
+    DATETIME_PRECISION("datetime_precision"),
+    CHARACTER_OCTET_LENGTH("character_octet_length");
     private final String name;
 }

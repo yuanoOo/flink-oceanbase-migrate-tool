@@ -81,6 +81,7 @@ public class ClickHouseType {
     public static final String Map = "Map";
     public static final String Tuple = "Tuple";
     public static final String Nested = "Nested";
+    public static final String Nullable = "Nullable";
     public static final String AggregateFunction = "AggregateFunction";
 
     public static final List<String> DateTypes =
@@ -126,12 +127,16 @@ public class ClickHouseType {
                         OceanBaseMySQLType.DECIMAL,
                         fieldSchema.getColumnSize(),
                         fieldSchema.getNumericScale());
-            case String:
             case Enum8:
             case Enum16:
+                System.out.println(fieldSchema.getEnumDefaultValue());
+                return String.format(SINGLE_PRECISION_FORMAT, OceanBaseMySQLType.ENUM,fieldSchema.getEnumDefaultValue());
+            case String:
             case FixedString:
-                return String.format(SINGLE_PRECISION_FORMAT, OceanBaseMySQLType.VARCHAR, 24);
-
+                if (fieldSchema.getColumnSize() == 0){
+                    return String.format(SINGLE_PRECISION_FORMAT, OceanBaseMySQLType.VARCHAR, 255);
+                }
+                return String.format(SINGLE_PRECISION_FORMAT, OceanBaseMySQLType.VARCHAR, fieldSchema.getColumnSize());
             case IPv4:
                 return String.format(SINGLE_PRECISION_FORMAT, OceanBaseMySQLType.VARCHAR, 15);
             case IPv6:
@@ -142,9 +147,9 @@ public class ClickHouseType {
                 return OceanBaseMySQLType.DATE;
             case DateTime:
             case DateTime32:
+                return OceanBaseMySQLType.TIMESTAMP;
             case DateTime64:
                 return OceanBaseMySQLType.DATETIME;
-
             default:
                 throw new UnsupportedOperationException(
                         "Unsupported ClickHouse type: " + fieldSchema.getTypeString());

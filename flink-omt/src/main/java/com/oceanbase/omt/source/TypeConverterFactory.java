@@ -31,7 +31,7 @@ public class TypeConverterFactory {
     }
 
     public static TypeConverter getConverter(DataSourceType type) {
-        if (StringUtils.isNotBlank(type.getValue())) {
+        if (type == null) {
             throw new IllegalArgumentException("DataSourceType cannot be null");
         }
         return converters.get(type);
