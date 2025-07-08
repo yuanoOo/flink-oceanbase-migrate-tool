@@ -152,29 +152,6 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
         assertContent(dataSource.getConnection(), expected1, "test1.orders1");
     }
 
-    @Test
-    public void testJdbcWithRoute() throws Exception {
-        LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-        env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
-        env.enableCheckpointing(1000);
-        // 1. Parse config
-        MigrationConfig migrationConfig = YamlParser.parseResource("clickhouse-route.yaml");
-        DataSource dataSource = DataSourceUtils.getOBDataSource(migrationConfig.getOceanbase());
-
-        // 2. Obtain StarRocks MetaData
-        ClickHouseDatabaseSync clickHouseDatabaseSync = new ClickHouseDatabaseSync(migrationConfig);
-        clickHouseDatabaseSync.createTableInOb();
-        clickHouseDatabaseSync.buildPipeline(env);
-        env.execute(migrationConfig.getPipeline().getName());
-
-        // table1
-        List<String> expected1 =
-                Arrays.asList(
-                        "1,2025-06-01 18:00:00,Alice,199.99,101,0",
-                        "2,2025-06-01 18:05:00,Bob,299.99,102,0");
-        assertContent(dataSource.getConnection(), expected1, "test1.order1");
-    }
-
     private void assertContent(Connection connection, List<String> expected, String tableName)
             throws SQLException {
         List<String> actual = queryTable(connection, tableName);

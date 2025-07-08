@@ -138,7 +138,6 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
                         }
                         if (type.contains(ClickHouseType.Enum16)) {
                             enumDefaultValue = enumFormat(type);
-                            System.out.println(enumDefaultValue);
                             type = ClickHouseType.Enum16;
                         }
                         if (type.contains(ClickHouseType.DateTime64)) {
