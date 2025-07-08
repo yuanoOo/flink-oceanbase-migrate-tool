@@ -17,7 +17,6 @@ package com.oceanbase.omt.source;
 
 import com.oceanbase.omt.source.clickhouse.ClickHouseTypeConverter;
 import com.oceanbase.omt.source.starrocks.StarRocksTypeConverter;
-import org.apache.commons.lang.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -130,13 +130,19 @@ public class ClickHouseType {
             case Enum8:
             case Enum16:
                 System.out.println(fieldSchema.getEnumDefaultValue());
-                return String.format(SINGLE_PRECISION_FORMAT, OceanBaseMySQLType.ENUM,fieldSchema.getEnumDefaultValue());
+                return String.format(
+                        SINGLE_PRECISION_FORMAT,
+                        OceanBaseMySQLType.ENUM,
+                        fieldSchema.getEnumDefaultValue());
             case String:
             case FixedString:
-                if (fieldSchema.getColumnSize() == 0){
+                if (fieldSchema.getColumnSize() == 0) {
                     return String.format(SINGLE_PRECISION_FORMAT, OceanBaseMySQLType.VARCHAR, 255);
                 }
-                return String.format(SINGLE_PRECISION_FORMAT, OceanBaseMySQLType.VARCHAR, fieldSchema.getColumnSize());
+                return String.format(
+                        SINGLE_PRECISION_FORMAT,
+                        OceanBaseMySQLType.VARCHAR,
+                        fieldSchema.getColumnSize());
             case IPv4:
                 return String.format(SINGLE_PRECISION_FORMAT, OceanBaseMySQLType.VARCHAR, 15);
             case IPv6:

@@ -182,9 +182,8 @@ public class ClickHousePartitionTest {
         Assert.assertEquals(Arrays.asList("b", "d", "a", "c", "e"), lists.get(1));
     }
 
-
     @Test
-    public void testEnum(){
+    public void testEnum() {
         String s = enumFormat("Enum8('hello' = 1, 'world' = 2, 'clickhouse' = 3)");
         System.out.println(s);
     }
@@ -192,10 +191,9 @@ public class ClickHousePartitionTest {
     public static String enumFormat(String enumType) {
         String s = extractInnerContent(enumType);
         return Arrays.stream(s.split(","))
-            .map(str -> str.contains("=") ? str.split("=")[0] : str)
-            .collect(Collectors.joining(","));
+                .map(str -> str.contains("=") ? str.split("=")[0] : str)
+                .collect(Collectors.joining(","));
     }
-
 
     public static String extractInnerContent(String input) {
         Pattern pattern = Pattern.compile("\\((.*)\\)");
@@ -205,5 +203,4 @@ public class ClickHousePartitionTest {
         }
         return "";
     }
-
 }

@@ -221,7 +221,7 @@ public class OceanBaseColumn implements Serializable {
         }
 
         public FieldSchemaBuilder withEnumDefaultValue(String enumDefaultValue) {
-            this.enumDefaultValue= enumDefaultValue;
+            this.enumDefaultValue = enumDefaultValue;
             return this;
         }
 

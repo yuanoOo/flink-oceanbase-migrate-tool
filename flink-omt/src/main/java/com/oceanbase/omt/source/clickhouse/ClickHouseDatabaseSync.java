@@ -61,7 +61,7 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
     private static final Logger LOG = LoggerFactory.getLogger(ClickHouseDatabaseSync.class);
     private List<OceanBaseTable> oceanBaseTables;
 
-    private final static Pattern PATTERN =  Pattern.compile("\\((.*)\\)");
+    private static final Pattern PATTERN = Pattern.compile("\\((.*)\\)");
 
     public ClickHouseDatabaseSync(MigrationConfig migrationConfig) {
         super(migrationConfig);
@@ -99,7 +99,8 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
 
     public OceanBaseTable getTable(String databaseName, String tableName)
             throws StarRocksCatalogException {
-        final String tableSchemaQuery = "SELECT * FROM system.columns WHERE database = ? AND table = ?";
+        final String tableSchemaQuery =
+                "SELECT * FROM system.columns WHERE database = ? AND table = ?";
         List<OceanBaseColumn> columns = new ArrayList<>();
         List<String> partitionTypes = new ArrayList<>();
         List<String> tableKeys = new ArrayList<>();
@@ -111,22 +112,25 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
                 try (ResultSet resultSet = statement.executeQuery()) {
                     while (resultSet.next()) {
                         int numericPrecision =
-                            resultSet.getInt(ColumnInfo.NUMERIC_PRECISION.getName());
+                                resultSet.getInt(ColumnInfo.NUMERIC_PRECISION.getName());
                         int numericScale = resultSet.getInt(ColumnInfo.NUMERIC_SCALE.getName());
                         String name = resultSet.getString(ColumnInfo.NAME.getName());
                         String type = resultSet.getString(ColumnInfo.TYPE.getName());
-                        String enumDefaultValue="";
+                        String enumDefaultValue = "";
                         if (type.contains(ClickHouseType.Decimal)) {
                             type = ClickHouseType.Decimal;
                         }
                         if (type.contains(ClickHouseType.String)) {
-                            if (resultSet.getString(ColumnInfo.CHARACTER_OCTET_LENGTH.getName())!=null){
-                                numericPrecision=resultSet.getInt(ColumnInfo.CHARACTER_OCTET_LENGTH.getName());
+                            if (resultSet.getString(ColumnInfo.CHARACTER_OCTET_LENGTH.getName())
+                                    != null) {
+                                numericPrecision =
+                                        resultSet.getInt(
+                                                ColumnInfo.CHARACTER_OCTET_LENGTH.getName());
                             }
                             type = ClickHouseType.String;
                         }
-                        if (type.contains(ClickHouseType.Nullable)){
-                            type=extractInnerContent(type);
+                        if (type.contains(ClickHouseType.Nullable)) {
+                            type = extractInnerContent(type);
                         }
                         if (type.contains(ClickHouseType.Enum8)) {
                             enumDefaultValue = enumFormat(type);
@@ -139,7 +143,8 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
                         }
                         if (type.contains(ClickHouseType.DateTime64)) {
                             type = ClickHouseType.DateTime64;
-                            numericPrecision = resultSet.getInt(ColumnInfo.DATETIME_PRECISION.getName());
+                            numericPrecision =
+                                    resultSet.getInt(ColumnInfo.DATETIME_PRECISION.getName());
                         }
                         boolean isPartitionKey =
                                 resultSet.getBoolean(ColumnInfo.IS_IN_PARTITION_KEY.getName());
@@ -226,9 +231,10 @@ public class ClickHouseDatabaseSync extends DatabaseSyncBase {
     public static String enumFormat(String enumType) {
         String s = extractInnerContent(enumType);
         return Arrays.stream(s.split(","))
-            .map(str -> str.contains("=") ? str.split("=")[0] : str)
-            .collect(Collectors.joining(","));
+                .map(str -> str.contains("=") ? str.split("=")[0] : str)
+                .collect(Collectors.joining(","));
     }
+
     public static String extractInnerContent(String input) {
         Matcher matcher = PATTERN.matcher(input);
         if (matcher.find()) {

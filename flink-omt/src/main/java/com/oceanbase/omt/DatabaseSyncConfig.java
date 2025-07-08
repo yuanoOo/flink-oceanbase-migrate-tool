@@ -23,4 +23,3 @@ public interface DatabaseSyncConfig {
 
     String CLICKHOUSE_TYPE = "clickhouse";
 }
-
