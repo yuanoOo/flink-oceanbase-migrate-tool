@@ -66,16 +66,33 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
                     .withEnv("CLICKHOUSE_PASSWORD", "123456")
                     .withEnv("CLICKHOUSE_USER", "root")
                     .withLogConsumer(new Slf4jLogConsumer(LOG));
+    private static final String CLUSTER_NAME = "spark-oceanbase-ci";
+    private static final String SYS_PASSWORD = "123456";
+    private static final String TEST_PASSWORD = "654321";
+    public static final GenericContainer<?> OB_CONTAINER =
+            new FixedHostPortGenericContainer<>("oceanbase/oceanbase-ce:latest")
+                    .withNetwork(NETWORK)
+                    .withEnv("OB_TENANT_PASSWORD", TEST_PASSWORD)
+                    .withEnv("MODE", "mini")
+                    .withEnv("OB_CLUSTER_NAME", CLUSTER_NAME)
+                    .withEnv("OB_SYS_PASSWORD", SYS_PASSWORD)
+                    .withEnv("OB_DATAFILE_SIZE", "2G")
+                    .withEnv("OB_LOG_DISK_SIZE", "4G")
+                    .withStartupTimeout(Duration.ofMinutes(6))
+                    .withCommand("run.sh", "--mysql-port", "3881", "--rpc-port", "3882")
+                    .withFixedExposedPort(3881, 3881)
+                    .withFixedExposedPort(3882, 3882)
+                    .withLogConsumer(new Slf4jLogConsumer(LOG));
 
     @BeforeClass
     public static void startContainers() {
         LOG.info("Starting containers...");
-        FIX_CONTAINER.waitingFor(
+        OB_CONTAINER.waitingFor(
                 new LogMessageWaitStrategy()
                         .withRegEx(".*boot success!.*")
                         .withTimes(1)
                         .withStartupTimeout(Duration.ofMinutes(6)));
-        FIX_CONTAINER.start();
+        OB_CONTAINER.start();
 
         Startables.deepStart(Stream.of(CLICKHOUSE_CONTAINER)).join();
         try (ClickHouseContainer clickhouse =
