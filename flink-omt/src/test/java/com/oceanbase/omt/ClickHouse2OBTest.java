@@ -78,6 +78,7 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
                     .withEnv("OB_SYS_PASSWORD", SYS_PASSWORD)
                     .withEnv("OB_DATAFILE_SIZE", "2G")
                     .withEnv("OB_LOG_DISK_SIZE", "4G")
+                    .withEnv("OB_MYSQL_PORT", "3881")
                     .withStartupTimeout(Duration.ofMinutes(6))
                     .withCommand("run.sh", "--mysql-port", "3881", "--rpc-port", "3882")
                     .withFixedExposedPort(3881, 3881)

@@ -20,7 +20,7 @@ source:
   tables: order
 
 oceanbase:
-  url: jdbc:mysql://192.168.107.2:2881/test
+  url: jdbc:mysql://localhost:2881/test
   username: root@test
   password: 654321
   schema-name: test
