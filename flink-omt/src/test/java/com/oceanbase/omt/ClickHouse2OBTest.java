@@ -26,9 +26,7 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,34 +64,16 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
                     .withEnv("CLICKHOUSE_PASSWORD", "123456")
                     .withEnv("CLICKHOUSE_USER", "root")
                     .withLogConsumer(new Slf4jLogConsumer(LOG));
-    private static final String CLUSTER_NAME = "spark-oceanbase-ci";
-    private static final String SYS_PASSWORD = "123456";
-    private static final String TEST_PASSWORD = "654321";
-    public static final GenericContainer<?> OB_CONTAINER =
-            new FixedHostPortGenericContainer<>("oceanbase/oceanbase-ce:latest")
-                    .withNetwork(NETWORK)
-                    .withEnv("OB_TENANT_PASSWORD", TEST_PASSWORD)
-                    .withEnv("MODE", "mini")
-                    .withEnv("OB_CLUSTER_NAME", CLUSTER_NAME)
-                    .withEnv("OB_SYS_PASSWORD", SYS_PASSWORD)
-                    .withEnv("OB_DATAFILE_SIZE", "2G")
-                    .withEnv("OB_LOG_DISK_SIZE", "4G")
-                    .withEnv("OB_MYSQL_PORT", "3881")
-                    .withStartupTimeout(Duration.ofMinutes(6))
-                    .withCommand("run.sh", "--mysql-port", "3881", "--rpc-port", "3882")
-                    .withFixedExposedPort(3881, 3881)
-                    .withFixedExposedPort(3882, 3882)
-                    .withLogConsumer(new Slf4jLogConsumer(LOG));
 
-    @BeforeClass
-    public static void startContainers() {
+    @Before
+    public void startContainers() throws SQLException, IOException {
         LOG.info("Starting containers...");
-        OB_CONTAINER.waitingFor(
+        FIX_CONTAINER.waitingFor(
                 new LogMessageWaitStrategy()
                         .withRegEx(".*boot success!.*")
                         .withTimes(1)
                         .withStartupTimeout(Duration.ofMinutes(6)));
-        OB_CONTAINER.start();
+        FIX_CONTAINER.start();
 
         Startables.deepStart(Stream.of(CLICKHOUSE_CONTAINER)).join();
         try (ClickHouseContainer clickhouse =
@@ -118,17 +98,18 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
             }
         }
         LOG.info("Containers are started.");
+        init();
     }
 
-    @AfterClass
-    public static void stopContainers() {
+    @After
+    public void stopContainers() throws SQLException, IOException {
+        close();
         LOG.info("Stopping containers...");
         CLICKHOUSE_CONTAINER.stop();
         FIX_CONTAINER.stop();
         LOG.info("Containers are stopped.");
     }
 
-    @Before
     public void init() throws IOException, SQLException {
         // 1. Parse config
         MigrationConfig migrationConfig = YamlParser.parseResource("clickhouse.yaml");
@@ -138,7 +119,6 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
         initialize(sourceDataSource.getConnection(), "sql/clickHouse-sql.sql");
     }
 
-    @After
     public void close() throws IOException, SQLException {
         MigrationConfig migrationConfig = YamlParser.parseResource("clickhouse.yaml");
         // drop ob
