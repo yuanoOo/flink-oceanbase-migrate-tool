@@ -105,6 +105,13 @@ under the License.
             <version>1.18.0</version>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>flink-connector-clickhouse</groupId>
+            <artifactId>CNCBCryptoPkg</artifactId>
+            <version>1.16.0</version>
+            <scope>system</scope>
+            <systemPath>${basedir}/src/lib/flink-connector-clickhouse-1.16.0-SNAPSHOT.jar</systemPath>
+        </dependency>
     </dependencies>
 
     <build>
