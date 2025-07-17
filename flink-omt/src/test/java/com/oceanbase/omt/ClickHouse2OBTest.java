@@ -16,7 +16,9 @@
 package com.oceanbase.omt;
 
 import com.oceanbase.omt.base.OceanBaseMySQLTestBase;
+import com.oceanbase.omt.base.OceanBaseSingleton;
 import com.oceanbase.omt.parser.MigrationConfig;
+import com.oceanbase.omt.parser.OBMigrateConfig;
 import com.oceanbase.omt.parser.YamlParser;
 import com.oceanbase.omt.source.clickhouse.ClickHouseDatabaseSync;
 import com.oceanbase.omt.utils.DataSourceUtils;
@@ -26,16 +28,15 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.clickhouse.ClickHouseContainer;
 import org.testcontainers.containers.FixedHostPortGenericContainer;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
-import org.testcontainers.lifecycle.Startables;
 
 import javax.sql.DataSource;
 
@@ -45,16 +46,18 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Stream;
 
 public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(ClickHouse2OBTest.class);
-
+    private static final GenericContainer<?> OB_CONTAINER = OceanBaseSingleton.getInstance();
     private static final String CLICKHOUSE_DOCKER_IMAGE_NAME =
             "clickhouse/clickhouse-server:latest";
+    private static final String CLICKHOUSE_USER = "root";
+    private static final String CLICKHOUSE_PASSWORD = "123456";
+
+    private MigrationConfig migrationConfig;
 
     public static final GenericContainer<?> CLICKHOUSE_CONTAINER =
             new FixedHostPortGenericContainer<>(CLICKHOUSE_DOCKER_IMAGE_NAME)
@@ -65,51 +68,37 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
                     .withEnv("CLICKHOUSE_USER", "root")
                     .withLogConsumer(new Slf4jLogConsumer(LOG));
 
-    @Before
-    public void startContainers() throws SQLException, IOException {
+    @BeforeClass
+    public static void startContainers() throws SQLException, IOException {
         LOG.info("Starting containers...");
-        FIX_CONTAINER.waitingFor(
-                new LogMessageWaitStrategy()
-                        .withRegEx(".*boot success!.*")
-                        .withTimes(1)
-                        .withStartupTimeout(Duration.ofMinutes(6)));
-        FIX_CONTAINER.start();
-
-        Startables.deepStart(Stream.of(CLICKHOUSE_CONTAINER)).join();
-        try (ClickHouseContainer clickhouse =
-                new ClickHouseContainer("clickhouse/clickhouse-server:latest")
-                        .withPassword("123456")
-                        .withUsername("root")
-                        .withExposedPorts(8123, 9000)) {
-
-            clickhouse.start();
-            String username = clickhouse.getUsername();
-            String password = clickhouse.getPassword();
-            String jdbcUrl = "jdbc:clickhouse://localhost:8123/default?user=root&password=123456";
-
-            try (Connection conn = DriverManager.getConnection(jdbcUrl, username, password);
-                    Statement stmt = conn.createStatement();
-                    ResultSet rs = stmt.executeQuery("SELECT version()")) {
-                if (rs.next()) {
-                    System.out.println("ClickHouse version: " + rs.getString(1));
-                }
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        CLICKHOUSE_CONTAINER.start();
+        verifyClickHouseConnection();
         LOG.info("Containers are started.");
-        init();
     }
 
-    @After
-    public void stopContainers() throws SQLException, IOException {
-        close();
+    private static void verifyClickHouseConnection() throws SQLException {
+        String jdbcUrl =
+                String.format(
+                        "jdbc:clickhouse://localhost:8123/default?user=%s&password=%s",
+                        CLICKHOUSE_USER, CLICKHOUSE_PASSWORD);
+
+        try (Connection conn = DriverManager.getConnection(jdbcUrl);
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery("SELECT version()")) {
+            if (rs.next()) {
+                LOG.info("ClickHouse version: {}", rs.getString(1));
+            }
+        }
+    }
+
+    @AfterClass
+    public static void stopContainers() throws SQLException, IOException {
         LOG.info("Stopping containers...");
         CLICKHOUSE_CONTAINER.stop();
-        FIX_CONTAINER.stop();
         LOG.info("Containers are stopped.");
     }
 
+    @Before
     public void init() throws IOException, SQLException {
         // 1. Parse config
         MigrationConfig migrationConfig = YamlParser.parseResource("clickhouse.yaml");
@@ -119,8 +108,9 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
         initialize(sourceDataSource.getConnection(), "sql/clickHouse-sql.sql");
     }
 
+    @After
     public void close() throws IOException, SQLException {
-        MigrationConfig migrationConfig = YamlParser.parseResource("clickhouse.yaml");
+        migrationConfig = YamlParser.parseResource("clickhouse.yaml");
         // drop ob
         DataSource dataSource = DataSourceUtils.getOBDataSource(migrationConfig.getOceanbase());
         dropDataBases(dataSource.getConnection(), "test1");
@@ -135,9 +125,17 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
         LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
         env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
         env.enableCheckpointing(1000);
-        MigrationConfig migrationConfig = YamlParser.parseResource("clickhouse.yaml");
+        migrationConfig = YamlParser.parseResource("clickhouse.yaml");
+        OBMigrateConfig oceanbase = migrationConfig.getOceanbase();
+        oceanbase.setUrl(
+                "jdbc:mysql://"
+                        + OB_CONTAINER.getHost()
+                        + ":"
+                        + OB_CONTAINER.getMappedPort(2881)
+                        + "/mysql");
+        migrationConfig.setOceanbase(oceanbase);
+        System.out.println(migrationConfig);
         DataSource dataSource = DataSourceUtils.getOBDataSource(migrationConfig.getOceanbase());
-
         ClickHouseDatabaseSync clickHouseDatabaseSync = new ClickHouseDatabaseSync(migrationConfig);
         clickHouseDatabaseSync.createTableInOb();
         clickHouseDatabaseSync.buildPipeline(env);
