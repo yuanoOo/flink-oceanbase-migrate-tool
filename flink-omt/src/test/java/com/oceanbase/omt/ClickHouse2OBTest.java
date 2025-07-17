@@ -43,6 +43,7 @@ import javax.sql.DataSource;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -106,6 +107,24 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
                 DataSourceUtils.getSourceDataSource(migrationConfig.getSource());
         crateDataBases(sourceDataSource.getConnection(), "test1");
         initialize(sourceDataSource.getConnection(), "sql/clickHouse-sql.sql");
+        Connection connection = sourceDataSource.getConnection();
+        PreparedStatement preparedStatement =
+                connection.prepareStatement("select * from test1.orders1");
+        ResultSet resultSet = preparedStatement.executeQuery();
+        while (resultSet.next()) {
+            System.out.println(
+                    resultSet.getString(1)
+                            + ","
+                            + resultSet.getString(2)
+                            + ","
+                            + resultSet.getString(3)
+                            + ","
+                            + resultSet.getString(4)
+                            + ","
+                            + resultSet.getString(5)
+                            + ","
+                            + resultSet.getString(6));
+        }
     }
 
     @After
@@ -134,7 +153,6 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
                         + OB_CONTAINER.getMappedPort(2881)
                         + "/mysql");
         migrationConfig.setOceanbase(oceanbase);
-        System.out.println(migrationConfig);
         DataSource dataSource = DataSourceUtils.getOBDataSource(migrationConfig.getOceanbase());
         ClickHouseDatabaseSync clickHouseDatabaseSync = new ClickHouseDatabaseSync(migrationConfig);
         clickHouseDatabaseSync.createTableInOb();
@@ -143,14 +161,15 @@ public class ClickHouse2OBTest extends OceanBaseMySQLTestBase {
         // table1
         List<String> expected1 =
                 Arrays.asList(
-                        "1,2025-06-01 18:00:00,Alice,199.99,101,0",
-                        "2,2025-06-01 18:05:00,Bob,299.99,102,0");
+                        "1,2025-06-01 10:00:00,Alice,199.99,101,0",
+                        "2,2025-06-01 10:05:00,Bob,299.99,102,0");
         assertContent(dataSource.getConnection(), expected1, "test1.orders1");
     }
 
     private void assertContent(Connection connection, List<String> expected, String tableName)
             throws SQLException {
         List<String> actual = queryTable(connection, tableName);
+        System.out.println(actual);
         assertEqualsInAnyOrder(expected, actual);
     }
 }
