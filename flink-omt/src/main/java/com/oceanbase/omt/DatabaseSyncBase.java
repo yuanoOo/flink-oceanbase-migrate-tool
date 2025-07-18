@@ -32,6 +32,7 @@ import com.oceanbase.omt.parser.Route;
 import com.oceanbase.omt.utils.OBSinkType;
 import com.oceanbase.omt.utils.OceanBaseUserInfo;
 
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -82,7 +83,7 @@ public abstract class DatabaseSyncBase {
         int sourceParallel =
                 Integer.parseInt(
                         migrationConfig.getSource().getOther().getOrDefault("parallelism", "2"));
-
+        String type = migrationConfig.getSource().getType();
         SingleOutputStreamOperator<DataChangeRecord> source = null;
         DataStream<DataChangeRecord> recordDataStream = null;
         for (int i = 0; i < oceanBaseTables.size(); i++) {
@@ -90,16 +91,22 @@ public abstract class DatabaseSyncBase {
             if (i == 0) {
                 source =
                         env.addSource(buildSourceFunction(oceanBaseTable))
+                                .returns(new TypeHint<RowData>() {})
                                 .setParallelism(sourceParallel)
-                                .map(new DataChangeMapFunction(oceanBaseTable, tableIdRouteMapping))
+                                .map(
+                                        new DataChangeMapFunction(
+                                                oceanBaseTable, tableIdRouteMapping, type))
                                 .setParallelism(sourceParallel)
                                 .name(buildSourceDescription(oceanBaseTable));
                 continue;
             }
             SingleOutputStreamOperator<DataChangeRecord> otherSource =
                     env.addSource(buildSourceFunction(oceanBaseTable))
+                            .returns(new TypeHint<RowData>() {})
                             .setParallelism(sourceParallel)
-                            .map(new DataChangeMapFunction(oceanBaseTable, tableIdRouteMapping))
+                            .map(
+                                    new DataChangeMapFunction(
+                                            oceanBaseTable, tableIdRouteMapping, type))
                             .setParallelism(sourceParallel)
                             .name(buildSourceDescription(oceanBaseTable));
             if (Objects.isNull(recordDataStream)) {

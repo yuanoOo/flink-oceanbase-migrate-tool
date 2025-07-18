@@ -58,7 +58,7 @@ DISTRIBUTED BY HASH(k2)
 PROPERTIES(
     "replication_num" = "1",
     "storage_medium" = "SSD",
-    "storage_cooldown_time" = "2025-06-04 00:00:00"
+    "storage_cooldown_time" = "2025-10-04 00:00:00"
 );
 CREATE TABLE IF NOT EXISTS test2.orders4 (
     id BIGINT COMMENT 'Bigint column',
