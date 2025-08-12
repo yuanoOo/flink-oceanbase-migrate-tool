@@ -17,8 +17,6 @@
 package com.oceanbase.omt.directload;
 
 import com.oceanbase.connector.flink.OBDirectLoadConnectorOptions;
-import com.oceanbase.connector.flink.directload.DirectLoader;
-import com.oceanbase.connector.flink.directload.DirectLoaderBuilder;
 import com.oceanbase.omt.catalog.TableIdentifier;
 
 /** The utils of {@link DirectLoader} */
@@ -35,15 +33,47 @@ public class DirectLoadUtils {
                     .tenant(connectorOptions.getTenantName())
                     .schema(tableId.getSchemaName())
                     .table(tableId.getTableName())
-                    .enableMultiNodeWrite(connectorOptions.getEnableMultiNodeWrite())
-                    .duplicateKeyAction(connectorOptions.getDirectLoadDupAction())
                     .maxErrorCount(connectorOptions.getDirectLoadMaxErrorRows())
                     .timeout(connectorOptions.getDirectLoadTimeout())
                     .heartBeatTimeout(connectorOptions.getDirectLoadHeartbeatTimeout())
                     .heartBeatInterval(connectorOptions.getDirectLoadHeartbeatInterval())
                     .directLoadMethod(connectorOptions.getDirectLoadLoadMethod())
+                    .duplicateKeyAction(connectorOptions.getDirectLoadDupAction())
                     .parallel(connectorOptions.getDirectLoadParallel())
-                    .executionId(connectorOptions.getExecutionId())
+                    .build();
+        } catch (Exception e) {
+            throw new RuntimeException("Fail to build DirectLoader.", e);
+        }
+    }
+
+    /**
+     * Build DirectLoader from OBDirectLoadConnectorOptions and executionId
+     *
+     * @param connectorOptions OBDirectLoadConnectorOptions
+     * @param executionId executionId
+     * @return DirectLoader
+     */
+    public static DirectLoader buildDirectLoaderFromConnOption(
+            OBDirectLoadConnectorOptions connectorOptions,
+            TableIdentifier tableId,
+            String executionId) {
+        try {
+            return new DirectLoaderBuilder()
+                    .host(connectorOptions.getDirectLoadHost())
+                    .port(connectorOptions.getDirectLoadPort())
+                    .user(connectorOptions.getUsername())
+                    .password(connectorOptions.getPassword())
+                    .tenant(connectorOptions.getTenantName())
+                    .schema(tableId.getSchemaName())
+                    .table(tableId.getTableName())
+                    .maxErrorCount(connectorOptions.getDirectLoadMaxErrorRows())
+                    .timeout(connectorOptions.getDirectLoadTimeout())
+                    .heartBeatTimeout(connectorOptions.getDirectLoadHeartbeatTimeout())
+                    .heartBeatInterval(connectorOptions.getDirectLoadHeartbeatInterval())
+                    .directLoadMethod(connectorOptions.getDirectLoadLoadMethod())
+                    .duplicateKeyAction(connectorOptions.getDirectLoadDupAction())
+                    .parallel(connectorOptions.getDirectLoadParallel())
+                    .executionId(executionId)
                     .build();
         } catch (Exception e) {
             throw new RuntimeException("Fail to build DirectLoader.", e);

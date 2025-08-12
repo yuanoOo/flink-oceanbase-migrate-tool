@@ -23,6 +23,7 @@ import java.util.Map;
 
 public class OBMigrateConfig {
     public static final String OB_DIRECT_LOAD_USERNAME = "direct-load.username";
+    public static final String OB_TENANT_NAME = "tenant-name";
 
     private String type = "jdbc";
     private String url;

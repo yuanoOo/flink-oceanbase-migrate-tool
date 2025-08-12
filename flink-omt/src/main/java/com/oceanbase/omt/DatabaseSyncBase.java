@@ -25,7 +25,8 @@ import com.oceanbase.connector.flink.table.DataChangeRecord;
 import com.oceanbase.connector.flink.table.DataChangeRecordData;
 import com.oceanbase.omt.catalog.OceanBaseTable;
 import com.oceanbase.omt.catalog.TableIdentifier;
-import com.oceanbase.omt.directload.DirectLoadSink;
+import com.oceanbase.omt.directload.DirectLoadUtils;
+import com.oceanbase.omt.directload.v2.MultiNodeSink;
 import com.oceanbase.omt.parser.MigrationConfig;
 import com.oceanbase.omt.parser.OBMigrateConfig;
 import com.oceanbase.omt.parser.Route;
@@ -34,7 +35,6 @@ import com.oceanbase.omt.utils.OceanBaseUserInfo;
 
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -54,6 +54,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -120,17 +121,11 @@ public abstract class DatabaseSyncBase {
             Sink<DataChangeRecord> rowDataOceanBaseSink = buildOceanBaseSink();
             recordDataStream.rebalance().sinkTo(rowDataOceanBaseSink);
         } else if (obSinkType == OBSinkType.DirectLoad) {
-            Integer numberOfTaskSlots =
-                    env.getConfiguration().get(TaskManagerOptions.NUM_TASK_SLOTS);
-            int parallelism = env.getParallelism();
-            Sink<DataChangeRecord> rowDataOceanBaseSink =
-                    buildDirectLoadOceanBaseSink(numberOfTaskSlots);
+            MultiNodeSink<DataChangeRecord> rowDataOceanBaseSink =
+                    buildDirectLoadOceanBaseSink(oceanBaseTables, tableIdRouteMapping);
             KeyedStream<DataChangeRecord, String> keyedStream =
                     recordDataStream.keyBy(key -> key.getTableId().identifier());
-            keyedStream
-                    .sinkTo(rowDataOceanBaseSink)
-                    .setParallelism(Math.min(parallelism, oceanBaseTables.size()));
-            // .setMaxParallelism(oceanBaseTables.size()); // Flink-1.17 not support!
+            keyedStream.sinkTo(rowDataOceanBaseSink);
         } else {
             throw new RuntimeException("Unknown OB sink type " + obSinkType);
         }
@@ -192,24 +187,37 @@ public abstract class DatabaseSyncBase {
     }
 
     // DirectLoad related.
-    protected DirectLoadSink<DataChangeRecord> buildDirectLoadOceanBaseSink(int numberOfTaskSlots)
+    protected MultiNodeSink<DataChangeRecord> buildDirectLoadOceanBaseSink(
+            List<OceanBaseTable> oceanBaseTables,
+            Map<TableIdentifier, TableIdentifier> tableIdRouteMapping)
             throws Exception {
         OBDirectLoadConnectorOptions connectorOptions = buildDirectLoadConnectionOptions();
-        List<TableIdentifier> tableIds =
-                getObTables().stream()
+        Map<TableIdentifier, String> tableIdExecutionIdMap =
+                oceanBaseTables.stream()
                         .map(
-                                oceanBaseTable ->
-                                        new TableIdentifier(
-                                                oceanBaseTable.getDatabase(),
-                                                oceanBaseTable.getTable()))
-                        .collect(Collectors.toList());
-        DirectLoadSink directLoadSink =
-                new DirectLoadSink(
-                        connectorOptions,
-                        new DoNothingSerializationSchema(),
-                        tableIds,
-                        numberOfTaskSlots);
-        return directLoadSink;
+                                oceanBaseTable -> {
+                                    OceanBaseTable table = oceanBaseTable;
+                                    // Apply Route rules
+                                    if (!CollectionUtil.isNullOrEmpty(tableIdRouteMapping)) {
+                                        TableIdentifier identifier =
+                                                tableIdRouteMapping.get(table.getTableIdentifier());
+                                        if (Objects.nonNull(identifier)) {
+                                            table = table.buildTableWithTableId(identifier);
+                                        }
+                                    }
+                                    return new TableIdentifier(
+                                            table.getDatabase(), table.getTable());
+                                })
+                        .collect(
+                                Collectors.toMap(
+                                        tableIdentifier -> tableIdentifier,
+                                        tableIdentifier ->
+                                                DirectLoadUtils.buildDirectLoaderFromConnOption(
+                                                                connectorOptions, tableIdentifier)
+                                                        .begin()));
+
+        return new MultiNodeSink<>(
+                connectorOptions, new DoNothingSerializationSchema(), tableIdExecutionIdMap);
     }
 
     public OBDirectLoadConnectorOptions buildDirectLoadConnectionOptions() {
@@ -225,7 +233,10 @@ public abstract class DatabaseSyncBase {
         ImmutableMap<String, String> configMap =
                 ImmutableMap.<String, String>builder()
                         .put(OBDirectLoadConnectorOptions.USERNAME.key(), userInfo.getUser())
-                        .put(OBDirectLoadConnectorOptions.TENANT_NAME.key(), userInfo.getTenant())
+                        .put(
+                                OBDirectLoadConnectorOptions.TENANT_NAME.key(),
+                                Optional.ofNullable(userInfo.getTenant())
+                                        .orElse(other.get(OBMigrateConfig.OB_TENANT_NAME)))
                         .put(OBDirectLoadConnectorOptions.PASSWORD.key(), oceanbase.getPassword())
                         .build();
         HashMap<String, String> config = new HashMap<>(other);
