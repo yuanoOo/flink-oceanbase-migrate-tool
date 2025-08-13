@@ -22,4 +22,6 @@ public interface DatabaseSyncConfig {
     String STARROCKS_TYPE = "starrocks";
 
     String CLICKHOUSE_TYPE = "clickhouse";
+
+    String DORIS_TYPE = "doris";
 }
