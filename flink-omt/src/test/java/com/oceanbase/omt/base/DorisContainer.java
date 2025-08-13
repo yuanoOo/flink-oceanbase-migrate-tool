@@ -20,11 +20,10 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
-import java.time.Duration;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 
 /**
  * Doris TestContainer implementation based on Flink CDC best practices.
@@ -147,7 +146,7 @@ public class DorisContainer extends GenericContainer<DorisContainer> {
     /** 检查 FE 健康状态 */
     public boolean isFrontendHealthy() {
         try {
-            var result =
+            org.testcontainers.containers.Container.ExecResult result =
                     execInContainer(
                             "curl",
                             "-s",
@@ -166,8 +165,7 @@ public class DorisContainer extends GenericContainer<DorisContainer> {
     public void executeSql(String sql) throws Exception {
         // 通过主机映射端口进行 JDBC 执行，避免依赖容器内是否预装 mysql 客户端
         try (Connection conn =
-                        DriverManager.getConnection(
-                                getJdbcUrl(), getUsername(), getPassword());
+                        DriverManager.getConnection(getJdbcUrl(), getUsername(), getPassword());
                 Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
         }
@@ -176,8 +174,7 @@ public class DorisContainer extends GenericContainer<DorisContainer> {
     /** 创建数据库 */
     public void createDatabase(String database) throws Exception {
         try (Connection conn =
-                        DriverManager.getConnection(
-                                getJdbcUrl(), getUsername(), getPassword());
+                        DriverManager.getConnection(getJdbcUrl(), getUsername(), getPassword());
                 Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE DATABASE IF NOT EXISTS " + database);
         }
@@ -186,8 +183,7 @@ public class DorisContainer extends GenericContainer<DorisContainer> {
     /** 删除数据库 */
     public void dropDatabase(String database) throws Exception {
         try (Connection conn =
-                        DriverManager.getConnection(
-                                getJdbcUrl(), getUsername(), getPassword());
+                        DriverManager.getConnection(getJdbcUrl(), getUsername(), getPassword());
                 Statement stmt = conn.createStatement()) {
             stmt.execute("DROP DATABASE IF EXISTS " + database);
         }

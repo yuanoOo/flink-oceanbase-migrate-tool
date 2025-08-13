@@ -22,9 +22,9 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.ResultSet;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -111,6 +111,8 @@ public abstract class DorisTestBase extends OceanBaseMySQLTestBase {
             TimeUnit.SECONDS.sleep(1);
         }
         LOG.info("Doris backend is available.");
+        // 额外等待5秒确保BE完全就绪
+        TimeUnit.SECONDS.sleep(5);
     }
 
     private static boolean checkBackendAvailability() {
@@ -122,10 +124,16 @@ public abstract class DorisTestBase extends OceanBaseMySQLTestBase {
                 Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery("SHOW BACKENDS")) {
             int rowCount = 0;
+            int aliveCount = 0;
             while (rs.next()) {
                 rowCount++;
+                String alive = rs.getString("Alive");
+                if ("true".equals(alive)) {
+                    aliveCount++;
+                }
             }
-            return rowCount > 0;
+            // 确保至少有一个活跃的后端
+            return rowCount > 0 && aliveCount > 0;
         } catch (Exception e) {
             LOG.debug("Checking backend availability failed, will retry: {}", e.getMessage());
             return false;
@@ -151,6 +159,14 @@ public abstract class DorisTestBase extends OceanBaseMySQLTestBase {
     /** 执行SQL语句 */
     protected void executeDorisSQL(String sql) throws SQLException {
         try (Connection conn = getDorisConnection();
+                Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
+    }
+
+    /** 执行SQL语句（指定数据库） */
+    protected void executeDorisSQL(String database, String sql) throws SQLException {
+        try (Connection conn = getDorisConnection(database);
                 Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
         }

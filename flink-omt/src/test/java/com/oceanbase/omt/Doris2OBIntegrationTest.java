@@ -77,8 +77,8 @@ public class Doris2OBIntegrationTest extends DorisTestBase {
 
     private void setupTestData() throws SQLException {
         // 创建test1.orders1表
-        executeDorisSQL("USE test1");
         executeDorisSQL(
+                "test1",
                 "CREATE TABLE IF NOT EXISTS orders1 ("
                         + "    id INT,"
                         + "    order_time DATETIME,"
@@ -92,11 +92,12 @@ public class Doris2OBIntegrationTest extends DorisTestBase {
 
         // 插入测试数据
         executeDorisSQL(
+                "test1",
                 "INSERT INTO orders1 VALUES (1, '2024-12-05 10:28:07', 'test_product', 2.3, 1, 1)");
 
         // 创建test2.orders4表
-        executeDorisSQL("USE test2");
         executeDorisSQL(
+                "test2",
                 "CREATE TABLE IF NOT EXISTS orders4 ("
                         + "    id INT,"
                         + "    status TINYINT,"
@@ -108,7 +109,9 @@ public class Doris2OBIntegrationTest extends DorisTestBase {
                         + " PROPERTIES ('replication_num' = '1')");
 
         // 插入测试数据
-        executeDorisSQL("INSERT INTO orders4 VALUES (1, 1, 'A123456789', '2023-01-01', 1234.5678)");
+        executeDorisSQL(
+                "test2",
+                "INSERT INTO orders4 VALUES (1, 1, 'A123456789', '2023-01-01', 1234.5678)");
     }
 
     @Test
@@ -174,7 +177,7 @@ public class Doris2OBIntegrationTest extends DorisTestBase {
         assertNotNull("Config should not be null", config);
 
         // 创建数据库同步实例
-        DorisDatabaseSync databaseSync = new DorisDatabaseSync();
+        DorisDatabaseSync databaseSync = new DorisDatabaseSync(config);
         assertNotNull("DatabaseSync should not be null", databaseSync);
 
         // 验证配置有效性
