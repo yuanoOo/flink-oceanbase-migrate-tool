@@ -23,6 +23,7 @@ under the License.
     <artifactId>flink-omt</artifactId>
     <version>flink_${flink.majorVersion}-${revision}</version>
     <name>flink-omt</name>
+    <description>Flink OceanBase Migration Tool - A data migration tool for importing data from various databases to OceanBase through Flink</description>
 
     <properties>
         <slf4j.version>1.7.36</slf4j.version>
@@ -179,4 +180,24 @@ under the License.
             </plugin>
         </plugins>
     </build>
+    <url>https://github.com/oceanbase/flink-oceanbase-migrate-tool</url>
+
+    <developers>
+        <developer>
+            <id>oceanbase</id>
+            <name>OceanBase Developers</name>
+            <email>open_contact@oceanbase.com</email>
+            <roles>
+                <role>Developer</role>
+            </roles>
+            <timezone>+8</timezone>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/oceanbase/flink-oceanbase-migrate-tool.git</connection>
+        <developerConnection>scm:git:https://github.com/oceanbase/flink-oceanbase-migrate-tool.git</developerConnection>
+        <url>https://github.com/oceanbase/flink-oceanbase-migrate-tool</url>
+        <tag>v1.1</tag>
+    </scm>
 </project>
